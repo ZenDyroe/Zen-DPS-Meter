@@ -2,6 +2,7 @@
   --meter-bg-color: 5, 6, 8;
   --meter-bg-opacity: 0.88;
   --bg: rgba(var(--meter-bg-color), var(--meter-bg-opacity));
+  --row-height: 24px;
   --panel: rgba(20, 22, 28, 0.95);
   --text: #f2f2f2;
   --muted: #b8b8b8;
@@ -229,8 +230,9 @@ body {
     clamp(40px, 12%, 60px);
   gap: 6px 12px;
   align-items: center;
+  height: var(--row-height, 24px);
   min-height: var(--row-height, 24px);
-  padding: 2px 6px;
+  padding: 1px 6px;
   border-radius: 2px;
   background: var(--panel);
   overflow: hidden;
@@ -291,8 +293,9 @@ body {
 
 .rank {
   color: #dddddd;
-  font-size: 11px;
+  font-size: clamp(9px, calc(var(--row-height, 24px) - 13px), 11px);
   font-weight: 700;
+  line-height: 1;
   text-align: right;
 }
 
@@ -300,21 +303,22 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: clamp(14px, calc(var(--row-height, 24px) - 4px), 20px);
+  height: clamp(14px, calc(var(--row-height, 24px) - 4px), 20px);
 }
 
 .job img {
-  width: 18px;
-  height: 18px;
+  width: clamp(12px, calc(var(--row-height, 24px) - 6px), 18px);
+  height: clamp(12px, calc(var(--row-height, 24px) - 6px), 18px);
   object-fit: contain;
   filter: drop-shadow(0 1px 2px rgba(0,0,0,0.65));
 }
 
 .name {
   min-width: 0;
-  font-size: 12px;
+  font-size: clamp(10px, calc(var(--row-height, 24px) - 12px), 12px);
   font-weight: 700;
+  line-height: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -333,8 +337,9 @@ body {
 
 .dps {
   text-align: right;
-  font-size: 12px;
+  font-size: clamp(10px, calc(var(--row-height, 24px) - 12px), 12px);
   font-weight: 800;
+  line-height: 1;
   color: white;
   font-variant-numeric: tabular-nums;
   text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.75);
@@ -343,8 +348,9 @@ body {
 .percent {
   text-align: right;
   color: #eeeeee;
-  font-size: 11px;
+  font-size: clamp(9px, calc(var(--row-height, 24px) - 13px), 11px);
   font-weight: 700;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
   text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.75);
 }
