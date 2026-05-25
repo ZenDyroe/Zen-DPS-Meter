@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FFXIV DPS Overlay</title>
+  <link rel="stylesheet" href="./css/style.css?v=20260525-27" />
+</head>
+
+<body>
+  <main id="overlay" class="meter-window">
+    <section class="topbar">
+
+      <div id="encounter-time" class="encounter-time">
+        00:00
+      </div>
+
+      <div class="topbar-separator"></div>
+
+      <div class="topbar-title">
+        <div id="encounter-title" class="title">
+          Current Encounter
+        </div>
+      </div>
+
+      <div class="topbar-controls">
+
+        <div id="top-stat" class="enc-dps" aria-label="Total DPS">
+          <span id="top-stat-value" class="top-stat-value">0</span>
+          <small id="top-stat-label" class="top-stat-label">Total DPS</small>
+        </div>
+
+        <button id="mode-button" class="mode-button" type="button">
+          DPS
+        </button>
+
+        <button id="menu-button" class="menu-button" title="Settings">
+          ⋮
+        </button>
+
+      </div>
+
+    </section>
+
+    <section id="settings-menu" class="settings-menu hidden">
+
+      <button id="open-preferences" class="settings-action">
+        Preferences...
+      </button>
+
+      <button id="create-secondary-window" class="settings-action">
+        + Create New Window
+      </button>
+
+      <button id="open-window-manager" class="settings-action">
+        Manage Windows
+      </button>
+      <button id="reset-defaults" class="settings-action">
+        Reset to defaults
+      </button>
+
+      <div class="settings-separator"></div>
+
+      <label class="settings-row">
+        <input id="obscure-names-toggle" type="checkbox" />
+        <span>Obscure Names</span>
+      </label>
+
+    </section>
+
+    <section id="window-manager" class="window-manager hidden">
+      <div class="window-manager-header">
+        <span>Created Windows</span>
+        <button id="close-window-manager" class="preferences-close" type="button">×</button>
+      </div>
+
+      <div id="window-manager-list" class="window-manager-list"></div>
+    </section>
+
+    <section id="preferences-window" class="preferences-window hidden">
+
+      <div class="preferences-header">
+        <span
+          role="button"
+          title="Close preferences"
+          onpointerdown="return window.zenClosePreferences && window.zenClosePreferences(event)"
+          onclick="return window.zenClosePreferences && window.zenClosePreferences(event)"
+        >Preferences</span>
+
+        <button
+          id="close-preferences"
+          class="preferences-close"
+          type="button"
+          onpointerdown="return window.zenClosePreferences && window.zenClosePreferences(event)"
+          onmousedown="return window.zenClosePreferences && window.zenClosePreferences(event)"
+          onmouseup="return window.zenClosePreferences && window.zenClosePreferences(event)"
+          onclick="return window.zenClosePreferences && window.zenClosePreferences(event)"
+        >
+          ×
+        </button>
+      </div>
+
+      <div class="preferences-body">
+
+        <label class="settings-row">
+          <input id="show-rank-toggle" type="checkbox" checked />
+          <span>Show Position Numbers</span>
+        </label>
+
+        <label class="settings-row">
+          <input id="show-deaths-toggle" type="checkbox" />
+          <span>Show Deaths</span>
+        </label>
+
+        <label class="settings-row">
+          <input id="show-footer-toggle" type="checkbox" checked />
+          <span>Show Footer</span>
+        </label>
+
+        <label class="settings-row">
+          <input id="show-meter-bg-toggle" type="checkbox" checked />
+          <span>Show Meter Background</span>
+        </label>
+
+        <label class="settings-field">
+          <span>Bar Colors</span>
+
+          <div id="bar-color-mode" class="segmented-control" role="group" aria-label="Bar color mode">
+            <button type="button" class="segmented-button" data-bar-color-mode="job">Job</button>
+            <button type="button" class="segmented-button" data-bar-color-mode="role">Role</button>
+            <button type="button" class="segmented-button" data-bar-color-mode="custom">Std</button>
+          </div>
+        </label>
+
+        <label id="bar-custom-color-field" class="settings-field">
+          <span>Standard Bar Color</span>
+
+          <button id="bar-custom-color-preview" type="button" class="color-swatch"></button>
+        </label>
+
+        <div id="bar-color-picker-panel" class="color-picker-panel hidden">
+          <div class="color-picker-map-wrap">
+            <div id="bar-color-map" class="color-picker-map">
+              <div id="bar-color-handle" class="color-picker-handle"></div>
+            </div>
+          </div>
+          <label class="color-picker-row" for="bar-color-hue">
+            <span>Hue</span>
+            <input id="bar-color-hue" type="range" min="0" max="360" value="0" />
+          </label>
+          <div class="color-picker-row">
+            <label for="bar-color-hex">Hex</label>
+            <input id="bar-color-hex" type="text" maxlength="7" />
+          </div>
+          <div class="color-picker-actions">
+            <button id="bar-color-cancel" class="settings-action" type="button">Cancel</button>
+            <button id="bar-color-apply" class="settings-action" type="button">Apply</button>
+          </div>
+        </div>
+
+        <label class="settings-field">
+          <span>Background Color</span>
+
+          <button id="meter-bg-color-preview" type="button" class="color-swatch"></button>
+        </label>
+
+        <div id="color-picker-panel" class="color-picker-panel hidden">
+          <div class="color-picker-map-wrap">
+            <div id="meter-bg-color-map" class="color-picker-map">
+              <div id="meter-bg-color-handle" class="color-picker-handle"></div>
+            </div>
+          </div>
+          <label class="color-picker-row" for="meter-bg-hue">
+            <span>Hue</span>
+            <input id="meter-bg-hue" type="range" min="0" max="360" value="0" />
+          </label>
+          <div class="color-picker-row">
+            <label for="meter-bg-hex">Hex</label>
+            <input id="meter-bg-hex" type="text" maxlength="7" />
+          </div>
+          <div class="color-picker-actions">
+            <button id="meter-bg-cancel" class="settings-action" type="button">Cancel</button>
+            <button id="meter-bg-apply" class="settings-action" type="button">Apply</button>
+          </div>
+        </div>
+
+        <label class="settings-field">
+          <span>Background Opacity</span>
+
+          <input
+            id="meter-bg-opacity"
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value="0.88"
+           
+          />
+        </label>
+
+        <label class="settings-field">
+          <span>Bar Height</span>
+
+          <div class="range-with-value">
+            <input
+              id="meter-bar-height"
+              type="range"
+              min="16"
+              max="44"
+              step="1"
+              value="24"
+             
+            />
+            <output id="meter-bar-height-value" for="meter-bar-height">24px</output>
+          </div>
+        </label>
+
+      </div>
+
+    </section>
+
+    <section id="combatants" class="combatants"></section>
+
+    <section class="footer">
+      <span id="encounter-location" class="encounter-location">Waiting for data</span>
+      <span id="status" class="status">0 combatants</span>
+    </section>
+  </main>
+
+  <div id="secondary-windows" class="secondary-windows"></div>
+
+  <div id="combatant-tooltip" class="combatant-tooltip hidden"></div>
+
+  <!--
+    mock-data.js is kept for local/browser testing only.
+    It will NOT display unless the URL includes ?mock=1, ?test=1, or ?preview=1.
+    Normal ACT/OverlayPlugin URLs without those query parameters use live ACT data only.
+  -->
+  <script src="./js/mock-data.js?v=20260525-27"></script>
+  <script src="./js/app.js?v=20260525-27"></script>
+</body>
+</html>
