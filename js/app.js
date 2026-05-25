@@ -1115,7 +1115,11 @@ function makeMeterResizable(meterElement, getSize, setSize, saveSize) {
   const grip = meterElement.querySelector(".resize-grip");
   if (!grip) return;
 
-  grip.addEventListener("mousedown", (event) => {
+  let isResizing = false;
+
+  const startResize = (event, moveEventName, stopEventName) => {
+    if (isResizing) return;
+    isResizing = true;
     event.preventDefault();
     event.stopPropagation();
 
@@ -1141,24 +1145,43 @@ function makeMeterResizable(meterElement, getSize, setSize, saveSize) {
       stopEvent?.preventDefault?.();
       stopEvent?.stopPropagation?.();
       meterElement.classList.remove("is-resizing");
-      document.removeEventListener("mousemove", resizeWindow, true);
-      document.removeEventListener("mouseup", stopResize, true);
+      document.removeEventListener(moveEventName, resizeWindow, true);
+      document.removeEventListener(stopEventName, stopResize, true);
       saveSize();
+      isResizing = false;
     };
 
-    document.addEventListener("mousemove", resizeWindow, true);
-    document.addEventListener("mouseup", stopResize, true);
+    document.addEventListener(moveEventName, resizeWindow, true);
+    document.addEventListener(stopEventName, stopResize, true);
+  };
+
+  grip.addEventListener("pointerdown", (event) => {
+    startResize(event, "pointermove", "pointerup");
+  }, true);
+
+  grip.addEventListener("mousedown", (event) => {
+    startResize(event, "mousemove", "mouseup");
   }, true);
 }
 
 function makeSecondaryWindowDraggable(windowElement, header, windowState, saveWindows) {
   windowElement.addEventListener("mousedown", (event) => {
-    if (event.target instanceof HTMLElement && event.target.closest(".secondary-window-header")) return;
+    if (
+      event.target instanceof HTMLElement &&
+      event.target.closest(".secondary-window-header, .resize-grip")
+    ) {
+      return;
+    }
     event.stopPropagation();
   }, true);
 
   windowElement.addEventListener("pointerdown", (event) => {
-    if (event.target instanceof HTMLElement && event.target.closest(".secondary-window-header")) return;
+    if (
+      event.target instanceof HTMLElement &&
+      event.target.closest(".secondary-window-header, .resize-grip")
+    ) {
+      return;
+    }
     event.stopPropagation();
   }, true);
 
@@ -1247,6 +1270,30 @@ document.addEventListener("DOMContentLoaded", () => {
   let secondaryWindows = loadSecondaryWindows();
   currentSecondaryWindows = secondaryWindows;
   let mainWindowSize = loadMainWindowSize() || { ...DEFAULT_MAIN_WINDOW_SIZE };
+
+  if (overlay) {
+    overlay.style.width = `${Math.max(mainWindowSize.width, 220)}px`;
+    overlay.style.height = `${Math.max(mainWindowSize.height, 80)}px`;
+
+    makeMeterResizable(
+      overlay,
+      () => ({
+        width: mainWindowSize.width || overlay.offsetWidth,
+        height: mainWindowSize.height || overlay.offsetHeight,
+      }),
+      (nextSize) => {
+        mainWindowSize = {
+          width: Math.max(220, nextSize.width),
+          height: Math.max(80, nextSize.height),
+        };
+        overlay.style.width = `${mainWindowSize.width}px`;
+        overlay.style.height = `${mainWindowSize.height}px`;
+      },
+      () => {
+        saveMainWindowSize(mainWindowSize);
+      }
+    );
+  }
 
   modeButton?.addEventListener("click", () => {
     if (overlay) cycleMeterMode(overlay);

@@ -331,6 +331,48 @@ body {
   color: #ffffff;
 }
 
+.resize-grip {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  z-index: 12;
+  width: 14px;
+  height: 14px;
+  border-right: 2px solid rgba(111, 157, 255, 0.82);
+  border-bottom: 2px solid rgba(111, 157, 255, 0.82);
+  cursor: nwse-resize;
+  opacity: 0.72;
+}
+
+.resize-grip::before,
+.resize-grip::after {
+  content: "";
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  border-right: 1px solid rgba(255, 255, 255, 0.56);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.56);
+}
+
+.resize-grip::before {
+  width: 8px;
+  height: 8px;
+}
+
+.resize-grip::after {
+  width: 4px;
+  height: 4px;
+}
+
+.meter-window:hover .resize-grip,
+.meter-window.is-resizing .resize-grip {
+  opacity: 1;
+}
+
+.meter-window.is-resizing {
+  user-select: none;
+}
+
 .bar {
   position: absolute;
   top: 0;
@@ -905,6 +947,11 @@ body {
 
 .secondary-window.is-dragging {
   opacity: 0.92;
+  user-select: none;
+}
+
+.secondary-window.is-resizing {
+  opacity: 0.96;
   user-select: none;
 }
 
