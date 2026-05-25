@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FFXIV DPS Overlay</title>
-  <link rel="stylesheet" href="./css/style.css?v=20260525-28" />
+  <link rel="stylesheet" href="./css/style.css?v=20260525-32" />
 </head>
 
 <body>
@@ -118,6 +118,11 @@
         </label>
 
         <label class="settings-row">
+          <input id="always-show-player-toggle" type="checkbox" />
+          <span>Always Show Your DPS</span>
+        </label>
+
+        <label class="settings-row">
           <input id="show-meter-bg-toggle" type="checkbox" checked />
           <span>Show Meter Background</span>
         </label>
@@ -215,6 +220,22 @@
           </div>
         </label>
 
+        <label class="settings-field">
+          <span>Bar Maximum</span>
+
+          <div class="range-with-value">
+            <input
+              id="meter-bar-maximum"
+              type="range"
+              min="1"
+              max="24"
+              step="1"
+              value="8"
+            />
+            <output id="meter-bar-maximum-value" for="meter-bar-maximum">8</output>
+          </div>
+        </label>
+
       </div>
 
     </section>
@@ -237,6 +258,6 @@
     Normal ACT/OverlayPlugin URLs without those query parameters use live ACT data only.
   -->
   <script src="./js/mock-data.js?v=20260525-27"></script>
-  <script src="./js/app.js?v=20260525-27"></script>
+  <script src="./js/app.js?v=20260525-31"></script>
 </body>
 </html>

@@ -127,12 +127,14 @@ const DEFAULT_SETTINGS = {
   showRanks: true,
   showDeaths: false,
   showFooter: true,
+  alwaysShowPlayer: false,
   showMeterBg: true,
   meterBgColor: "#050608",
   meterBgOpacity: "0.88",
   barColorMode: "job",
   barCustomColor: "#4974C4",
   barHeight: 24,
+  barMaximum: 8,
 };
 
 const settingsState = {
@@ -147,6 +149,9 @@ const settingsState = {
 
   showFooter:
     localStorage.getItem("showFooter") !== "false",
+
+  alwaysShowPlayer:
+    localStorage.getItem("alwaysShowPlayer") === "true",
 
   showMeterBg:
     localStorage.getItem("showMeterBg") !== "false",
@@ -165,11 +170,28 @@ const settingsState = {
 
   barHeight:
     clampBarHeight(Number(localStorage.getItem("barHeight")) || DEFAULT_SETTINGS.barHeight),
+
+  barMaximum:
+    clampBarMaximum(Number(localStorage.getItem("barMaximum")) || DEFAULT_SETTINGS.barMaximum),
 };
 
 function clampBarHeight(value) {
   if (!Number.isFinite(value)) return DEFAULT_SETTINGS.barHeight;
   return Math.max(16, Math.min(44, Math.round(value)));
+}
+
+function clampBarMaximum(value) {
+  if (!Number.isFinite(value)) return DEFAULT_SETTINGS.barMaximum;
+  return Math.max(1, Math.min(24, Math.round(value)));
+}
+
+function getCombatantsMaxHeight() {
+  const rowHeight = clampBarHeight(settingsState.barHeight);
+  const maximumRows = clampBarMaximum(settingsState.barMaximum);
+  const rowGap = 2;
+  const headerHeight = 9;
+
+  return headerHeight + (maximumRows * rowHeight) + (maximumRows * rowGap);
 }
 
 function applyOverlaySettings() {
@@ -185,6 +207,12 @@ function applyOverlaySettings() {
     meterWindow.style.setProperty("--meter-bg-opacity", settingsState.meterBgOpacity);
     meterWindow.style.setProperty("--bg", overlayBg);
     meterWindow.style.setProperty("--row-height", `${clampBarHeight(settingsState.barHeight)}px`);
+
+    const combatants = meterWindow.querySelector(".combatants");
+    if (combatants) {
+      combatants.style.maxHeight = `${getCombatantsMaxHeight()}px`;
+      updatePinnedPlayerState(combatants);
+    }
   });
 }
 
@@ -345,6 +373,20 @@ function getCombatantDamagePct(combatant) {
 
 function getCombatantName(combatant) {
   return String(combatant.name ?? combatant.Name ?? combatant.NAME ?? combatant.__name ?? "").trim();
+}
+
+function isPlayerCombatant(combatant) {
+  const name = getCombatantName(combatant).toLowerCase();
+  return (
+    name === "you" ||
+    name === "yourself" ||
+    combatant.isSelf === true ||
+    combatant.IsSelf === true ||
+    combatant.isLocalPlayer === true ||
+    combatant.IsLocalPlayer === true ||
+    combatant.isMe === true ||
+    combatant.IsMe === true
+  );
 }
 
 function hasDamageShare(combatant) {
@@ -527,10 +569,31 @@ function getMeterStore(meterRoot) {
     meterRoot.meterStore = {
       headerRow: null,
       rowElements: {},
+      hasPinnedScrollListener: false,
     };
   }
 
   return meterRoot.meterStore;
+}
+
+function updatePinnedPlayerState(container) {
+  const pinnedRow = container.querySelector(".row.player-pinned");
+  if (!pinnedRow) return;
+
+  const rankIndex = Number(pinnedRow.dataset.rankIndex);
+  if (!Number.isFinite(rankIndex)) {
+    pinnedRow.classList.remove("player-pinned-active");
+    return;
+  }
+
+  const rowHeight = clampBarHeight(settingsState.barHeight);
+  const rowGap = 2;
+  const headerHeight = 9;
+  const naturalTop = headerHeight + (rankIndex * (rowHeight + rowGap));
+  const stickyThreshold = naturalTop - (container.clientHeight - rowHeight);
+  const isPinnedAwayFromRank = container.scrollTop < stickyThreshold - 1;
+
+  pinnedRow.classList.toggle("player-pinned-active", isPinnedAwayFromRank);
 }
 
 function renderRowsForMeter(meterRoot, rows, options = {}) {
@@ -541,6 +604,13 @@ function renderRowsForMeter(meterRoot, rows, options = {}) {
   const meterMode = getMeterMode(meterRoot);
   const snap = options.snap === true;
   container.classList.toggle("snap-bars", snap);
+
+  if (!meterStore.hasPinnedScrollListener) {
+    container.addEventListener("scroll", () => {
+      updatePinnedPlayerState(container);
+    });
+    meterStore.hasPinnedScrollListener = true;
+  }
 
   if (!meterStore.headerRow) {
     meterStore.headerRow = createHeaderRow();
@@ -573,6 +643,17 @@ function renderRowsForMeter(meterRoot, rows, options = {}) {
     row.job = job;
     row.meterMode = meterMode;
     row.style.setProperty("--job-bar", getBarGradient(job));
+
+    const isPlayer = isPlayerCombatant(combatant);
+    const isPinnedPlayer =
+      settingsState.alwaysShowPlayer &&
+      isPlayer &&
+      index + 1 > clampBarMaximum(settingsState.barMaximum);
+
+    row.classList.toggle("player-row", isPlayer);
+    row.classList.toggle("player-pinned", isPinnedPlayer);
+    row.classList.remove("player-pinned-active");
+    row.dataset.rankIndex = String(index);
 
     const bar = row.querySelector(".bar");
     const rank = row.querySelector(".rank");
@@ -616,8 +697,11 @@ function renderRowsForMeter(meterRoot, rows, options = {}) {
   if (snap) {
     requestAnimationFrame(() => {
       container.classList.remove("snap-bars");
+      updatePinnedPlayerState(container);
     });
   }
+
+  updatePinnedPlayerState(container);
 }
 
 function renderRows(rows, options = {}) {
@@ -1273,6 +1357,8 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("show-deaths-toggle");
   const showFooterToggle =
     document.getElementById("show-footer-toggle");
+  const alwaysShowPlayerToggle =
+    document.getElementById("always-show-player-toggle");
 
   if (showRankToggle) {
     showRankToggle.checked = settingsState.showRanks;
@@ -1309,6 +1395,17 @@ document.addEventListener("DOMContentLoaded", () => {
       applyOverlaySettings();
     });
   }
+
+  if (alwaysShowPlayerToggle) {
+    alwaysShowPlayerToggle.checked = settingsState.alwaysShowPlayer;
+
+    alwaysShowPlayerToggle.addEventListener("change", () => {
+      settingsState.alwaysShowPlayer = alwaysShowPlayerToggle.checked;
+      localStorage.setItem("alwaysShowPlayer", String(settingsState.alwaysShowPlayer));
+      refreshRows({ snap: true });
+    });
+  }
+
   /* Meter background settings */
   const showMeterBgToggle = document.getElementById("show-meter-bg-toggle");
   const barColorModeControl = document.getElementById("bar-color-mode");
@@ -1631,6 +1728,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const meterBarHeightInput = document.getElementById("meter-bar-height");
   const meterBarHeightValue = document.getElementById("meter-bar-height-value");
+  const meterBarMaximumInput = document.getElementById("meter-bar-maximum");
+  const meterBarMaximumValue = document.getElementById("meter-bar-maximum-value");
 
   if (meterBgOpacityInput) {
     meterBgOpacityInput.value = settingsState.meterBgOpacity;
@@ -1662,6 +1761,27 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  if (meterBarMaximumInput) {
+    const setBarMaximumControl = (maximum) => {
+      const clampedMaximum = clampBarMaximum(maximum);
+      meterBarMaximumInput.value = String(clampedMaximum);
+      if (meterBarMaximumValue) {
+        meterBarMaximumValue.textContent = String(clampedMaximum);
+      }
+    };
+
+    setBarMaximumControl(settingsState.barMaximum);
+
+    meterBarMaximumInput.addEventListener("input", () => {
+      const maximum = clampBarMaximum(Number(meterBarMaximumInput.value));
+      settingsState.barMaximum = maximum;
+      localStorage.setItem("barMaximum", String(settingsState.barMaximum));
+      setBarMaximumControl(settingsState.barMaximum);
+      applyOverlaySettings();
+      refreshRows({ snap: true });
+    });
+  }
+
   const resetDefaultsButton = document.getElementById("reset-defaults");
 
   resetDefaultsButton?.addEventListener("click", (event) => {
@@ -1671,23 +1791,27 @@ document.addEventListener("DOMContentLoaded", () => {
     settingsState.showRanks = DEFAULT_SETTINGS.showRanks;
     settingsState.showDeaths = DEFAULT_SETTINGS.showDeaths;
     settingsState.showFooter = DEFAULT_SETTINGS.showFooter;
+    settingsState.alwaysShowPlayer = DEFAULT_SETTINGS.alwaysShowPlayer;
     settingsState.showMeterBg = DEFAULT_SETTINGS.showMeterBg;
     settingsState.meterBgColor = DEFAULT_SETTINGS.meterBgColor;
     settingsState.meterBgOpacity = DEFAULT_SETTINGS.meterBgOpacity;
     settingsState.barColorMode = DEFAULT_SETTINGS.barColorMode;
     settingsState.barCustomColor = DEFAULT_SETTINGS.barCustomColor;
     settingsState.barHeight = DEFAULT_SETTINGS.barHeight;
+    settingsState.barMaximum = DEFAULT_SETTINGS.barMaximum;
 
     localStorage.setItem("obscureNames", String(settingsState.obscureNames));
     localStorage.setItem("showRanks", String(settingsState.showRanks));
     localStorage.setItem("showDeaths", String(settingsState.showDeaths));
     localStorage.setItem("showFooter", String(settingsState.showFooter));
+    localStorage.setItem("alwaysShowPlayer", String(settingsState.alwaysShowPlayer));
     localStorage.setItem("showMeterBg", String(settingsState.showMeterBg));
     localStorage.setItem("meterBgColor", settingsState.meterBgColor);
     localStorage.setItem("meterBgOpacity", settingsState.meterBgOpacity);
     localStorage.setItem("barColorMode", settingsState.barColorMode);
     localStorage.setItem("barCustomColor", settingsState.barCustomColor);
     localStorage.setItem("barHeight", String(settingsState.barHeight));
+    localStorage.setItem("barMaximum", String(settingsState.barMaximum));
 
     if (obscureNamesToggle) {
       obscureNamesToggle.checked = settingsState.obscureNames;
@@ -1703,6 +1827,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (showFooterToggle) {
       showFooterToggle.checked = settingsState.showFooter;
+    }
+
+    if (alwaysShowPlayerToggle) {
+      alwaysShowPlayerToggle.checked = settingsState.alwaysShowPlayer;
     }
 
     if (showMeterBgToggle) {
@@ -1726,6 +1854,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (meterBarHeightValue) {
       meterBarHeightValue.textContent = `${settingsState.barHeight}px`;
+    }
+
+    if (meterBarMaximumInput) {
+      meterBarMaximumInput.value = String(settingsState.barMaximum);
+    }
+
+    if (meterBarMaximumValue) {
+      meterBarMaximumValue.textContent = String(settingsState.barMaximum);
     }
 
     applyOverlaySettings();
@@ -1752,6 +1888,7 @@ document.addEventListener("DOMContentLoaded", () => {
     meterBgHexInput,
     meterBgOpacityInput,
     meterBarHeightInput,
+    meterBarMaximumInput,
   ].forEach((element) => {
     element?.addEventListener("mousedown", (event) => {
       event.stopPropagation();
@@ -1765,7 +1902,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (
       event.target instanceof HTMLElement &&
       event.target.closest(
-        "#preferences-window, #settings-menu, #window-manager, #secondary-windows, #open-preferences, #create-secondary-window, #open-window-manager, #reset-defaults, #color-picker-panel, #meter-bg-color-preview, #meter-bg-color-map, #meter-bg-hue, #meter-bg-hex, #meter-bg-opacity, #meter-bar-height, .settings-field, .settings-row, .settings-action, input, button"
+        "#preferences-window, #settings-menu, #window-manager, #secondary-windows, #open-preferences, #create-secondary-window, #open-window-manager, #reset-defaults, #color-picker-panel, #meter-bg-color-preview, #meter-bg-color-map, #meter-bg-hue, #meter-bg-hex, #meter-bg-opacity, #meter-bar-height, #meter-bar-maximum, .settings-field, .settings-row, .settings-action, input, button"
       )
     ) {
       event.preventDefault();
