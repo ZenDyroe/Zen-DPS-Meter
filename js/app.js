@@ -128,7 +128,6 @@ const DEFAULT_SETTINGS = {
   showDeaths: false,
   showFooter: true,
   alwaysShowPlayer: false,
-  clickThroughBody: false,
   showMeterBg: true,
   meterBgColor: "#050608",
   meterBgOpacity: "0.88",
@@ -153,9 +152,6 @@ const settingsState = {
 
   alwaysShowPlayer:
     localStorage.getItem("alwaysShowPlayer") === "true",
-
-  clickThroughBody:
-    localStorage.getItem("clickThroughBody") === "true",
 
   showMeterBg:
     localStorage.getItem("showMeterBg") !== "false",
@@ -202,14 +198,10 @@ function applyOverlaySettings() {
   const bgColorRgb = hexToRgb(settingsState.meterBgColor);
   const overlayBg = `rgba(${bgColorRgb}, ${settingsState.meterBgOpacity})`;
 
-  document.documentElement.classList.toggle("click-through-body", settingsState.clickThroughBody);
-  document.body.classList.toggle("click-through-body", settingsState.clickThroughBody);
-
   document.querySelectorAll(".meter-window").forEach((meterWindow) => {
     meterWindow.classList.toggle("hide-ranks", !settingsState.showRanks);
     meterWindow.classList.toggle("show-deaths", settingsState.showDeaths);
     meterWindow.classList.toggle("hide-footer", !settingsState.showFooter);
-    meterWindow.classList.toggle("click-through-body", settingsState.clickThroughBody);
     meterWindow.classList.toggle("no-meter-bg", !settingsState.showMeterBg);
     meterWindow.style.setProperty("--meter-bg-color", bgColorRgb);
     meterWindow.style.setProperty("--meter-bg-opacity", settingsState.meterBgOpacity);
@@ -1102,6 +1094,71 @@ function createSecondaryWindowState(existingWindows) {
   };
 }
 
+function keepWindowInOverlayBounds(windowState, windowElement) {
+  const maxX = Math.max(window.innerWidth - windowElement.offsetWidth, 0);
+  const maxY = Math.max(window.innerHeight - windowElement.offsetHeight, 0);
+
+  windowState.x = Math.max(0, Math.min(windowState.x, maxX));
+  windowState.y = Math.max(0, Math.min(windowState.y, maxY));
+  windowElement.style.left = `${windowState.x}px`;
+  windowElement.style.top = `${windowState.y}px`;
+}
+
+function makeSecondaryWindowDraggable(windowElement, header, windowState, saveWindows) {
+  windowElement.addEventListener("mousedown", (event) => {
+    if (event.target instanceof HTMLElement && event.target.closest(".secondary-window-header")) return;
+    event.stopPropagation();
+  }, true);
+
+  windowElement.addEventListener("pointerdown", (event) => {
+    if (event.target instanceof HTMLElement && event.target.closest(".secondary-window-header")) return;
+    event.stopPropagation();
+  }, true);
+
+  const startDrag = (event) => {
+    event.stopPropagation();
+
+    if (
+      event.target instanceof HTMLElement &&
+      event.target.closest("button, input, select, textarea, .secondary-settings-menu")
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const originX = windowState.x || 0;
+    const originY = windowState.y || 0;
+
+    windowElement.classList.add("is-dragging");
+
+    const moveWindow = (moveEvent) => {
+      moveEvent.preventDefault();
+      moveEvent.stopPropagation();
+
+      windowState.x = Math.round(originX + moveEvent.clientX - startX);
+      windowState.y = Math.round(originY + moveEvent.clientY - startY);
+      keepWindowInOverlayBounds(windowState, windowElement);
+    };
+
+    const stopDrag = (stopEvent) => {
+      stopEvent?.preventDefault?.();
+      stopEvent?.stopPropagation?.();
+      windowElement.classList.remove("is-dragging");
+      document.removeEventListener("mousemove", moveWindow, true);
+      document.removeEventListener("mouseup", stopDrag, true);
+      saveWindows();
+    };
+
+    document.addEventListener("mousemove", moveWindow, true);
+    document.addEventListener("mouseup", stopDrag, true);
+  };
+
+  header.addEventListener("mousedown", startDrag, true);
+}
+
 document.addEventListener("onOverlayDataUpdate", (event) => {
   state.hasOverlayData = true;
   if (state.mockPreviewInterval) {
@@ -1205,6 +1262,11 @@ document.addEventListener("DOMContentLoaded", () => {
       const modeButton = header.querySelector(".mode-button");
       const menuButton = header.querySelector(".secondary-menu-button");
       const closeButton = header.querySelector(".secondary-window-close");
+
+      makeSecondaryWindowDraggable(windowElement, header, windowState, () => {
+        saveSecondaryWindows(secondaryWindows);
+        renderWindowManagerList();
+      });
 
       modeButton?.addEventListener("click", (event) => {
         event.stopPropagation();
@@ -1367,8 +1429,6 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("show-footer-toggle");
   const alwaysShowPlayerToggle =
     document.getElementById("always-show-player-toggle");
-  const clickThroughBodyToggle =
-    document.getElementById("click-through-body-toggle");
 
   if (showRankToggle) {
     showRankToggle.checked = settingsState.showRanks;
@@ -1413,16 +1473,6 @@ document.addEventListener("DOMContentLoaded", () => {
       settingsState.alwaysShowPlayer = alwaysShowPlayerToggle.checked;
       localStorage.setItem("alwaysShowPlayer", String(settingsState.alwaysShowPlayer));
       refreshRows({ snap: true });
-    });
-  }
-
-  if (clickThroughBodyToggle) {
-    clickThroughBodyToggle.checked = settingsState.clickThroughBody;
-
-    clickThroughBodyToggle.addEventListener("change", () => {
-      settingsState.clickThroughBody = clickThroughBodyToggle.checked;
-      localStorage.setItem("clickThroughBody", String(settingsState.clickThroughBody));
-      applyOverlaySettings();
     });
   }
 
@@ -1812,7 +1862,6 @@ document.addEventListener("DOMContentLoaded", () => {
     settingsState.showDeaths = DEFAULT_SETTINGS.showDeaths;
     settingsState.showFooter = DEFAULT_SETTINGS.showFooter;
     settingsState.alwaysShowPlayer = DEFAULT_SETTINGS.alwaysShowPlayer;
-    settingsState.clickThroughBody = DEFAULT_SETTINGS.clickThroughBody;
     settingsState.showMeterBg = DEFAULT_SETTINGS.showMeterBg;
     settingsState.meterBgColor = DEFAULT_SETTINGS.meterBgColor;
     settingsState.meterBgOpacity = DEFAULT_SETTINGS.meterBgOpacity;
@@ -1826,7 +1875,6 @@ document.addEventListener("DOMContentLoaded", () => {
     localStorage.setItem("showDeaths", String(settingsState.showDeaths));
     localStorage.setItem("showFooter", String(settingsState.showFooter));
     localStorage.setItem("alwaysShowPlayer", String(settingsState.alwaysShowPlayer));
-    localStorage.setItem("clickThroughBody", String(settingsState.clickThroughBody));
     localStorage.setItem("showMeterBg", String(settingsState.showMeterBg));
     localStorage.setItem("meterBgColor", settingsState.meterBgColor);
     localStorage.setItem("meterBgOpacity", settingsState.meterBgOpacity);
@@ -1853,10 +1901,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (alwaysShowPlayerToggle) {
       alwaysShowPlayerToggle.checked = settingsState.alwaysShowPlayer;
-    }
-
-    if (clickThroughBodyToggle) {
-      clickThroughBodyToggle.checked = settingsState.clickThroughBody;
     }
 
     if (showMeterBgToggle) {

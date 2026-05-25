@@ -29,19 +29,6 @@ body {
   color: var(--text);
 }
 
-html.click-through-body,
-body.click-through-body {
-  pointer-events: none;
-}
-
-body.click-through-body .topbar,
-body.click-through-body #settings-menu,
-body.click-through-body #preferences-window,
-body.click-through-body #window-manager,
-body.click-through-body .secondary-settings-menu {
-  pointer-events: auto;
-}
-
 #overlay {
   position: relative;
   z-index: 950;
@@ -908,6 +895,16 @@ body.click-through-body .secondary-settings-menu {
 
 .secondary-window .topbar {
   margin-bottom: 2px;
+  user-select: none;
+  cursor: move;
+}
+
+.secondary-window .topbar button {
+  cursor: pointer;
+}
+
+.secondary-window.is-dragging {
+  opacity: 0.92;
   user-select: none;
 }
 
