@@ -1104,6 +1104,53 @@ function keepWindowInOverlayBounds(windowState, windowElement) {
   windowElement.style.top = `${windowState.y}px`;
 }
 
+function makeResizeGrip() {
+  const grip = document.createElement("div");
+  grip.className = "resize-grip";
+  grip.title = "Resize window";
+  return grip;
+}
+
+function makeMeterResizable(meterElement, getSize, setSize, saveSize) {
+  const grip = meterElement.querySelector(".resize-grip");
+  if (!grip) return;
+
+  grip.addEventListener("mousedown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const startSize = getSize();
+
+    meterElement.classList.add("is-resizing");
+
+    const resizeWindow = (moveEvent) => {
+      moveEvent.preventDefault();
+      moveEvent.stopPropagation();
+
+      const nextSize = {
+        width: Math.round(startSize.width + moveEvent.clientX - startX),
+        height: Math.round(startSize.height + moveEvent.clientY - startY),
+      };
+
+      setSize(nextSize);
+    };
+
+    const stopResize = (stopEvent) => {
+      stopEvent?.preventDefault?.();
+      stopEvent?.stopPropagation?.();
+      meterElement.classList.remove("is-resizing");
+      document.removeEventListener("mousemove", resizeWindow, true);
+      document.removeEventListener("mouseup", stopResize, true);
+      saveSize();
+    };
+
+    document.addEventListener("mousemove", resizeWindow, true);
+    document.addEventListener("mouseup", stopResize, true);
+  }, true);
+}
+
 function makeSecondaryWindowDraggable(windowElement, header, windowState, saveWindows) {
   windowElement.addEventListener("mousedown", (event) => {
     if (event.target instanceof HTMLElement && event.target.closest(".secondary-window-header")) return;
@@ -1267,6 +1314,27 @@ document.addEventListener("DOMContentLoaded", () => {
         saveSecondaryWindows(secondaryWindows);
         renderWindowManagerList();
       });
+
+      windowElement.appendChild(makeResizeGrip());
+
+      makeMeterResizable(
+        windowElement,
+        () => ({
+          width: windowState.width || windowElement.offsetWidth,
+          height: windowState.height || windowElement.offsetHeight,
+        }),
+        (nextSize) => {
+          windowState.width = Math.max(240, nextSize.width);
+          windowState.height = Math.max(120, nextSize.height);
+          windowElement.style.width = `${windowState.width}px`;
+          windowElement.style.height = `${windowState.height}px`;
+          keepWindowInOverlayBounds(windowState, windowElement);
+        },
+        () => {
+          saveSecondaryWindows(secondaryWindows);
+          renderWindowManagerList();
+        }
+      );
 
       modeButton?.addEventListener("click", (event) => {
         event.stopPropagation();
