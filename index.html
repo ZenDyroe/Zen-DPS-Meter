@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FFXIV DPS Overlay</title>
-  <link rel="stylesheet" href="./css/style.css?v=20260525-32" />
+  <link rel="stylesheet" href="./css/style.css?v=20260525-33" />
 </head>
 
 <body>
@@ -102,139 +102,158 @@
 
       <div class="preferences-body">
 
-        <label class="settings-row">
-          <input id="show-rank-toggle" type="checkbox" checked />
-          <span>Show Position Numbers</span>
-        </label>
+        <section class="preferences-section">
+          <div class="preferences-section-title">Display</div>
 
-        <label class="settings-row">
-          <input id="show-deaths-toggle" type="checkbox" />
-          <span>Show Deaths</span>
-        </label>
+          <label class="settings-row">
+            <input id="show-rank-toggle" type="checkbox" checked />
+            <span>Show Position Numbers</span>
+          </label>
 
-        <label class="settings-row">
-          <input id="show-footer-toggle" type="checkbox" checked />
-          <span>Show Footer</span>
-        </label>
+          <label class="settings-row">
+            <input id="show-deaths-toggle" type="checkbox" />
+            <span>Show Deaths</span>
+          </label>
 
-        <label class="settings-row">
-          <input id="always-show-player-toggle" type="checkbox" />
-          <span>Always Show Your DPS</span>
-        </label>
+          <label class="settings-row">
+            <input id="show-footer-toggle" type="checkbox" checked />
+            <span>Show Footer</span>
+          </label>
 
-        <label class="settings-row">
-          <input id="show-meter-bg-toggle" type="checkbox" checked />
-          <span>Show Meter Background</span>
-        </label>
+          <label class="settings-row">
+            <input id="always-show-player-toggle" type="checkbox" />
+            <span>Always Show Your DPS</span>
+          </label>
+        </section>
 
-        <label class="settings-field">
-          <span>Bar Colors</span>
+        <section class="preferences-section">
+          <div class="preferences-section-title">Interaction</div>
+
+          <label class="settings-row">
+            <input id="click-through-body-toggle" type="checkbox" />
+            <span>Click Through Meter Body</span>
+          </label>
+        </section>
+
+        <section class="preferences-section">
+          <div class="preferences-section-title">Appearance</div>
+
+          <label class="settings-row">
+            <input id="show-meter-bg-toggle" type="checkbox" checked />
+            <span>Show Meter Background</span>
+          </label>
+
+          <label class="settings-field">
+            <span>Bar Colors</span>
 
           <div id="bar-color-mode" class="segmented-control" role="group" aria-label="Bar color mode">
             <button type="button" class="segmented-button" data-bar-color-mode="job">Job</button>
             <button type="button" class="segmented-button" data-bar-color-mode="role">Role</button>
             <button type="button" class="segmented-button" data-bar-color-mode="custom">Std</button>
           </div>
-        </label>
+          </label>
 
-        <label id="bar-custom-color-field" class="settings-field">
-          <span>Standard Bar Color</span>
+          <label id="bar-custom-color-field" class="settings-field">
+            <span>Standard Bar Color</span>
 
-          <button id="bar-custom-color-preview" type="button" class="color-swatch"></button>
-        </label>
+            <button id="bar-custom-color-preview" type="button" class="color-swatch"></button>
+          </label>
 
-        <div id="bar-color-picker-panel" class="color-picker-panel hidden">
-          <div class="color-picker-map-wrap">
-            <div id="bar-color-map" class="color-picker-map">
-              <div id="bar-color-handle" class="color-picker-handle"></div>
+          <div id="bar-color-picker-panel" class="color-picker-panel hidden">
+            <div class="color-picker-map-wrap">
+              <div id="bar-color-map" class="color-picker-map">
+                <div id="bar-color-handle" class="color-picker-handle"></div>
+              </div>
+            </div>
+            <label class="color-picker-row" for="bar-color-hue">
+              <span>Hue</span>
+              <input id="bar-color-hue" type="range" min="0" max="360" value="0" />
+            </label>
+            <div class="color-picker-row">
+              <label for="bar-color-hex">Hex</label>
+              <input id="bar-color-hex" type="text" maxlength="7" />
+            </div>
+            <div class="color-picker-actions">
+              <button id="bar-color-cancel" class="settings-action" type="button">Cancel</button>
+              <button id="bar-color-apply" class="settings-action" type="button">Apply</button>
             </div>
           </div>
-          <label class="color-picker-row" for="bar-color-hue">
-            <span>Hue</span>
-            <input id="bar-color-hue" type="range" min="0" max="360" value="0" />
+
+          <label class="settings-field">
+            <span>Background Color</span>
+
+            <button id="meter-bg-color-preview" type="button" class="color-swatch"></button>
           </label>
-          <div class="color-picker-row">
-            <label for="bar-color-hex">Hex</label>
-            <input id="bar-color-hex" type="text" maxlength="7" />
-          </div>
-          <div class="color-picker-actions">
-            <button id="bar-color-cancel" class="settings-action" type="button">Cancel</button>
-            <button id="bar-color-apply" class="settings-action" type="button">Apply</button>
-          </div>
-        </div>
 
-        <label class="settings-field">
-          <span>Background Color</span>
-
-          <button id="meter-bg-color-preview" type="button" class="color-swatch"></button>
-        </label>
-
-        <div id="color-picker-panel" class="color-picker-panel hidden">
-          <div class="color-picker-map-wrap">
-            <div id="meter-bg-color-map" class="color-picker-map">
-              <div id="meter-bg-color-handle" class="color-picker-handle"></div>
+          <div id="color-picker-panel" class="color-picker-panel hidden">
+            <div class="color-picker-map-wrap">
+              <div id="meter-bg-color-map" class="color-picker-map">
+                <div id="meter-bg-color-handle" class="color-picker-handle"></div>
+              </div>
+            </div>
+            <label class="color-picker-row" for="meter-bg-hue">
+              <span>Hue</span>
+              <input id="meter-bg-hue" type="range" min="0" max="360" value="0" />
+            </label>
+            <div class="color-picker-row">
+              <label for="meter-bg-hex">Hex</label>
+              <input id="meter-bg-hex" type="text" maxlength="7" />
+            </div>
+            <div class="color-picker-actions">
+              <button id="meter-bg-cancel" class="settings-action" type="button">Cancel</button>
+              <button id="meter-bg-apply" class="settings-action" type="button">Apply</button>
             </div>
           </div>
-          <label class="color-picker-row" for="meter-bg-hue">
-            <span>Hue</span>
-            <input id="meter-bg-hue" type="range" min="0" max="360" value="0" />
+
+          <label class="settings-field">
+            <span>Background Opacity</span>
+
+            <input
+              id="meter-bg-opacity"
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value="0.88"
+            />
           </label>
-          <div class="color-picker-row">
-            <label for="meter-bg-hex">Hex</label>
-            <input id="meter-bg-hex" type="text" maxlength="7" />
-          </div>
-          <div class="color-picker-actions">
-            <button id="meter-bg-cancel" class="settings-action" type="button">Cancel</button>
-            <button id="meter-bg-apply" class="settings-action" type="button">Apply</button>
-          </div>
-        </div>
+        </section>
 
-        <label class="settings-field">
-          <span>Background Opacity</span>
+        <section class="preferences-section">
+          <div class="preferences-section-title">Layout</div>
 
-          <input
-            id="meter-bg-opacity"
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            value="0.88"
-           
-          />
-        </label>
+          <label class="settings-field">
+            <span>Bar Height</span>
 
-        <label class="settings-field">
-          <span>Bar Height</span>
+            <div class="range-with-value">
+              <input
+                id="meter-bar-height"
+                type="range"
+                min="16"
+                max="44"
+                step="1"
+                value="24"
+              />
+              <output id="meter-bar-height-value" for="meter-bar-height">24px</output>
+            </div>
+          </label>
 
-          <div class="range-with-value">
-            <input
-              id="meter-bar-height"
-              type="range"
-              min="16"
-              max="44"
-              step="1"
-              value="24"
-             
-            />
-            <output id="meter-bar-height-value" for="meter-bar-height">24px</output>
-          </div>
-        </label>
+          <label class="settings-field">
+            <span>Bar Maximum</span>
 
-        <label class="settings-field">
-          <span>Bar Maximum</span>
-
-          <div class="range-with-value">
-            <input
-              id="meter-bar-maximum"
-              type="range"
-              min="1"
-              max="24"
-              step="1"
-              value="8"
-            />
-            <output id="meter-bar-maximum-value" for="meter-bar-maximum">8</output>
-          </div>
-        </label>
+            <div class="range-with-value">
+              <input
+                id="meter-bar-maximum"
+                type="range"
+                min="1"
+                max="24"
+                step="1"
+                value="8"
+              />
+              <output id="meter-bar-maximum-value" for="meter-bar-maximum">8</output>
+            </div>
+          </label>
+        </section>
 
       </div>
 
@@ -258,6 +277,6 @@
     Normal ACT/OverlayPlugin URLs without those query parameters use live ACT data only.
   -->
   <script src="./js/mock-data.js?v=20260525-27"></script>
-  <script src="./js/app.js?v=20260525-31"></script>
+  <script src="./js/app.js?v=20260525-32"></script>
 </body>
 </html>

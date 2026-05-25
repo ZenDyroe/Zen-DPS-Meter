@@ -128,6 +128,7 @@ const DEFAULT_SETTINGS = {
   showDeaths: false,
   showFooter: true,
   alwaysShowPlayer: false,
+  clickThroughBody: false,
   showMeterBg: true,
   meterBgColor: "#050608",
   meterBgOpacity: "0.88",
@@ -152,6 +153,9 @@ const settingsState = {
 
   alwaysShowPlayer:
     localStorage.getItem("alwaysShowPlayer") === "true",
+
+  clickThroughBody:
+    localStorage.getItem("clickThroughBody") === "true",
 
   showMeterBg:
     localStorage.getItem("showMeterBg") !== "false",
@@ -202,6 +206,7 @@ function applyOverlaySettings() {
     meterWindow.classList.toggle("hide-ranks", !settingsState.showRanks);
     meterWindow.classList.toggle("show-deaths", settingsState.showDeaths);
     meterWindow.classList.toggle("hide-footer", !settingsState.showFooter);
+    meterWindow.classList.toggle("click-through-body", settingsState.clickThroughBody);
     meterWindow.classList.toggle("no-meter-bg", !settingsState.showMeterBg);
     meterWindow.style.setProperty("--meter-bg-color", bgColorRgb);
     meterWindow.style.setProperty("--meter-bg-opacity", settingsState.meterBgOpacity);
@@ -1359,6 +1364,8 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("show-footer-toggle");
   const alwaysShowPlayerToggle =
     document.getElementById("always-show-player-toggle");
+  const clickThroughBodyToggle =
+    document.getElementById("click-through-body-toggle");
 
   if (showRankToggle) {
     showRankToggle.checked = settingsState.showRanks;
@@ -1403,6 +1410,16 @@ document.addEventListener("DOMContentLoaded", () => {
       settingsState.alwaysShowPlayer = alwaysShowPlayerToggle.checked;
       localStorage.setItem("alwaysShowPlayer", String(settingsState.alwaysShowPlayer));
       refreshRows({ snap: true });
+    });
+  }
+
+  if (clickThroughBodyToggle) {
+    clickThroughBodyToggle.checked = settingsState.clickThroughBody;
+
+    clickThroughBodyToggle.addEventListener("change", () => {
+      settingsState.clickThroughBody = clickThroughBodyToggle.checked;
+      localStorage.setItem("clickThroughBody", String(settingsState.clickThroughBody));
+      applyOverlaySettings();
     });
   }
 
@@ -1792,6 +1809,7 @@ document.addEventListener("DOMContentLoaded", () => {
     settingsState.showDeaths = DEFAULT_SETTINGS.showDeaths;
     settingsState.showFooter = DEFAULT_SETTINGS.showFooter;
     settingsState.alwaysShowPlayer = DEFAULT_SETTINGS.alwaysShowPlayer;
+    settingsState.clickThroughBody = DEFAULT_SETTINGS.clickThroughBody;
     settingsState.showMeterBg = DEFAULT_SETTINGS.showMeterBg;
     settingsState.meterBgColor = DEFAULT_SETTINGS.meterBgColor;
     settingsState.meterBgOpacity = DEFAULT_SETTINGS.meterBgOpacity;
@@ -1805,6 +1823,7 @@ document.addEventListener("DOMContentLoaded", () => {
     localStorage.setItem("showDeaths", String(settingsState.showDeaths));
     localStorage.setItem("showFooter", String(settingsState.showFooter));
     localStorage.setItem("alwaysShowPlayer", String(settingsState.alwaysShowPlayer));
+    localStorage.setItem("clickThroughBody", String(settingsState.clickThroughBody));
     localStorage.setItem("showMeterBg", String(settingsState.showMeterBg));
     localStorage.setItem("meterBgColor", settingsState.meterBgColor);
     localStorage.setItem("meterBgOpacity", settingsState.meterBgOpacity);
@@ -1831,6 +1850,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (alwaysShowPlayerToggle) {
       alwaysShowPlayerToggle.checked = settingsState.alwaysShowPlayer;
+    }
+
+    if (clickThroughBodyToggle) {
+      clickThroughBodyToggle.checked = settingsState.clickThroughBody;
     }
 
     if (showMeterBgToggle) {

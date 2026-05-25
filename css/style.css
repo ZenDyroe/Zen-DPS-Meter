@@ -69,6 +69,18 @@ body {
     clamp(40px, 12%, 60px);
 }
 
+.meter-window.click-through-body {
+  pointer-events: none;
+}
+
+.meter-window.click-through-body .topbar,
+.meter-window.click-through-body #settings-menu,
+.meter-window.click-through-body #preferences-window,
+.meter-window.click-through-body #window-manager,
+.meter-window.click-through-body .secondary-settings-menu {
+  pointer-events: auto;
+}
+
 .meter-window.no-meter-bg {
   background: transparent;
   border-color: transparent;
@@ -446,6 +458,69 @@ body {
   font-weight: 700;
 }
 
+.preferences-body .settings-field,
+.preferences-body .settings-row {
+  min-height: 32px;
+  padding: 0 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.preferences-body .settings-field:hover,
+.preferences-body .settings-row:hover {
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.preferences-body .settings-row {
+  justify-content: space-between;
+}
+
+.preferences-body .settings-row span,
+.preferences-body .settings-field > span {
+  min-width: 0;
+  color: #f0f3f8;
+}
+
+.preferences-body .settings-row input[type="checkbox"] {
+  order: 2;
+  flex: 0 0 auto;
+  appearance: none;
+  width: 30px;
+  height: 16px;
+  margin: 0;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease;
+}
+
+.preferences-body .settings-row input[type="checkbox"]::before {
+  content: "";
+  display: block;
+  width: 12px;
+  height: 12px;
+  margin: 1px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.42);
+  transition:
+    transform 140ms ease,
+    background 140ms ease;
+}
+
+.preferences-body .settings-row input[type="checkbox"]:checked {
+  border-color: rgba(111, 157, 255, 0.72);
+  background: rgba(111, 157, 255, 0.52);
+}
+
+.preferences-body .settings-row input[type="checkbox"]:checked::before {
+  transform: translateX(14px);
+  background: #ffffff;
+}
+
 .color-swatch {
   width: 34px;
   height: 22px;
@@ -539,6 +614,28 @@ body {
   width: 95px;
 }
 
+.preferences-body input[type="range"] {
+  height: 18px;
+  accent-color: #6f9dff;
+}
+
+.preferences-body input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.preferences-body input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border: 2px solid #dfe8ff;
+  border-radius: 50%;
+  background: #6f9dff;
+  box-shadow: 0 0 0 3px rgba(111, 157, 255, 0.18);
+}
+
 .range-with-value {
   display: grid;
   grid-template-columns: 1fr 42px;
@@ -620,12 +717,14 @@ body {
   top: 48px;
   right: 8px;
   z-index: 10000;
-  width: 260px;
+  width: 286px;
   max-height: calc(100vh - 56px);
-  border-radius: 4px;
-  background: rgba(8, 10, 14, 0.98);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.72);
+  border-radius: 6px;
+  background: rgba(9, 11, 16, 0.985);
+  border: 1px solid rgba(171, 195, 255, 0.2);
+  box-shadow:
+    0 16px 42px rgba(0, 0, 0, 0.74),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
   overflow: hidden;
 }
 
@@ -714,10 +813,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 30px;
-  padding: 0 8px;
-  background: rgba(255, 255, 255, 0.07);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  height: 34px;
+  padding: 0 10px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.035));
+  border-bottom: 1px solid rgba(171, 195, 255, 0.18);
   color: #ffffff;
   font-size: 12px;
   font-weight: 900;
@@ -745,9 +845,31 @@ body {
 .preferences-body {
   max-height: calc(100vh - 88px);
   overflow-y: auto;
-  padding: 8px;
+  display: grid;
+  gap: 10px;
+  padding: 10px;
   scrollbar-color: rgba(111, 157, 255, 0.55) rgba(255, 255, 255, 0.04);
   scrollbar-width: thin;
+}
+
+.preferences-section {
+  display: grid;
+  gap: 5px;
+  padding-bottom: 2px;
+}
+
+.preferences-section + .preferences-section {
+  padding-top: 9px;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.preferences-section-title {
+  padding: 0 2px 2px;
+  color: rgba(184, 199, 232, 0.82);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .preferences-window,
