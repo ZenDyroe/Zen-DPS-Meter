@@ -128,6 +128,7 @@ const DEFAULT_SETTINGS = {
   showDeaths: false,
   showFooter: true,
   alwaysShowPlayer: false,
+  showCornerAid: true,
   showMeterBg: true,
   meterBgColor: "#050608",
   meterBgOpacity: "0.88",
@@ -152,6 +153,9 @@ const settingsState = {
 
   alwaysShowPlayer:
     localStorage.getItem("alwaysShowPlayer") === "true",
+
+  showCornerAid:
+    localStorage.getItem("showCornerAid") !== "false",
 
   showMeterBg:
     localStorage.getItem("showMeterBg") !== "false",
@@ -202,6 +206,7 @@ function applyOverlaySettings() {
     meterWindow.classList.toggle("hide-ranks", !settingsState.showRanks);
     meterWindow.classList.toggle("show-deaths", settingsState.showDeaths);
     meterWindow.classList.toggle("hide-footer", !settingsState.showFooter);
+    meterWindow.classList.toggle("hide-corner-aid", !settingsState.showCornerAid);
     meterWindow.classList.toggle("no-meter-bg", !settingsState.showMeterBg);
     meterWindow.style.setProperty("--meter-bg-color", bgColorRgb);
     meterWindow.style.setProperty("--meter-bg-opacity", settingsState.meterBgOpacity);
@@ -356,6 +361,34 @@ function numberFromACT(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function getEncounterDurationSeconds(encounter = state.lastEncounter || {}) {
+  const raw =
+    encounter.duration ||
+    encounter.DURATION ||
+    encounter.Duration ||
+    encounter.active ||
+    encounter.Active ||
+    "";
+
+  const text = String(raw).trim();
+  if (!text) return 0;
+
+  const parts = text.split(":").map((part) => Number(part));
+  if (parts.some((part) => !Number.isFinite(part))) {
+    return numberFromACT(text);
+  }
+
+  if (parts.length === 3) {
+    return (parts[0] * 3600) + (parts[1] * 60) + parts[2];
+  }
+
+  if (parts.length === 2) {
+    return (parts[0] * 60) + parts[1];
+  }
+
+  return parts[0] || 0;
+}
+
 function formatNumber(value) {
   return Math.round(numberFromACT(value)).toLocaleString();
 }
@@ -488,10 +521,12 @@ function getEncounterLocation(encounter) {
 function updateMeterChrome(meterRoot, encounter, rows) {
   const title = getEncounterTitle(encounter);
   const location = getEncounterLocation(encounter);
-  const raidDps = rows.reduce(
-    (total, combatant) => total + getCombatantValue(combatant, "dps"),
+  const meterMode = getMeterMode(meterRoot);
+  const topStatTotal = rows.reduce(
+    (total, combatant) => total + getCombatantValue(combatant, meterMode, encounter),
     0
   );
+  const topStatLabel = `Total ${getModeLabel(meterMode)}`;
   const duration = encounter.duration || encounter.DURATION || "00:00";
   const titleElement = meterRoot.querySelector(".title");
   const timeElement = meterRoot.querySelector(".encounter-time");
@@ -506,8 +541,9 @@ function updateMeterChrome(meterRoot, encounter, rows) {
   if (statusElement) statusElement.textContent = `${rows.length} combatants`;
 
   if (topValue && topLabel) {
-    topValue.textContent = raidDps > 0 ? formatNumber(raidDps) : "-";
-    topLabel.textContent = "Total DPS";
+    topValue.textContent = topStatTotal > 0 ? formatNumber(topStatTotal) : "-";
+    topLabel.textContent = topStatLabel;
+    topValue.parentElement?.setAttribute("aria-label", topStatLabel);
   }
 }
 
@@ -619,9 +655,13 @@ function renderRowsForMeter(meterRoot, rows, options = {}) {
   container.appendChild(meterStore.headerRow);
 
   const sortedRows = [...rows].sort(
-    (a, b) => getCombatantValue(b, meterMode) - getCombatantValue(a, meterMode)
+    (a, b) =>
+      getCombatantValue(b, meterMode, state.lastEncounter || {}) -
+      getCombatantValue(a, meterMode, state.lastEncounter || {})
   );
-  const values = sortedRows.map((combatant) => getCombatantValue(combatant, meterMode));
+  const values = sortedRows.map((combatant) =>
+    getCombatantValue(combatant, meterMode, state.lastEncounter || {})
+  );
   const topValue = Math.max(...values, 1);
   const seenRowKeys = new Set();
 
@@ -726,7 +766,7 @@ function getModeLabel(mode) {
   }
 }
 
-function getCombatantValue(combatant, mode = overlayModeState.mode) {
+function getCombatantValue(combatant, mode = overlayModeState.mode, encounter = state.lastEncounter || {}) {
   switch (mode) {
 
     case "hps":
@@ -739,14 +779,36 @@ function getCombatantValue(combatant, mode = overlayModeState.mode) {
         0
       );
 
-    case "dtps":
-      return numberFromACT(
+    case "dtps": {
+      const directDtps = numberFromACT(
+        combatant.EncDTPS ||
+        combatant.ENCDTPS ||
+        combatant.encDTPS ||
+        combatant.encdtps ||
+        combatant.DTPS ||
+        combatant.dtps ||
+        combatant.damageTakenPerSecond ||
+        combatant.DamageTakenPerSecond ||
+        combatant.damageTakenPerSec ||
+        combatant.DamageTakenPerSec ||
+        combatant["damageTaken/s"] ||
+        combatant["DamageTaken/s"] ||
+        0
+      );
+
+      if (directDtps > 0) return directDtps;
+
+      const totalDamageTaken = numberFromACT(
         combatant.DamageTaken ||
         combatant["damageTaken"] ||
         combatant.damagetaken ||
-        combatant.DTPS ||
+        combatant.damageTaken ||
         0
       );
+      const durationSeconds = getEncounterDurationSeconds(encounter);
+
+      return durationSeconds > 0 ? totalDamageTaken / durationSeconds : 0;
+    }
 
     default:
       return numberFromACT(
@@ -868,7 +930,7 @@ function buildCombatantTooltip(combatant, job, mode = overlayModeState.mode) {
   const displayName = getDisplayName(combatant, job);
   const statRows = [
     ["Damage", damage],
-    [getModeLabel(mode), formatNumber(getCombatantValue(combatant, mode))],
+    [getModeLabel(mode), formatNumber(getCombatantValue(combatant, mode, state.lastEncounter || {}))],
     ["Share", getCombatantDamagePct(combatant) || "-"],
     ["Deaths", deathText],
     ["Critical Hit", crit],
@@ -1133,12 +1195,10 @@ function makeMeterResizable(meterElement, getSize, setSize, saveSize) {
       moveEvent.preventDefault();
       moveEvent.stopPropagation();
 
-      const nextSize = {
+      setSize({
         width: Math.round(startSize.width + moveEvent.clientX - startX),
         height: Math.round(startSize.height + moveEvent.clientY - startY),
-      };
-
-      setSize(nextSize);
+      });
     };
 
     const stopResize = (stopEvent) => {
@@ -1343,7 +1403,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="title">Current Encounter</div>
         </div>
         <div class="topbar-controls">
-          <div class="enc-dps" aria-label="Total DPS">
+          <div class="enc-dps" aria-label="Total ${getModeLabel(windowElement.dataset.mode)}">
             <span class="top-stat-value">0</span>
             <small class="top-stat-label">Total DPS</small>
           </div>
@@ -1431,13 +1491,52 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    const updateWindowSize = (windowState, dimension, value) => {
+      const minimum = dimension === "width" ? 240 : 120;
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) return;
+
+      windowState[dimension] = Math.max(minimum, Math.round(parsed));
+      saveSecondaryWindows(secondaryWindows);
+      renderSecondaryWindows();
+      renderWindowManagerList();
+    };
+
+    const createSizeControl = (windowState, dimension, label, min) => {
+      const control = document.createElement("label");
+      control.className = "window-manager-size-control";
+
+      const labelText = document.createElement("span");
+      labelText.textContent = label;
+
+      const input = document.createElement("input");
+      input.type = "number";
+      input.min = String(min);
+      input.step = "10";
+      input.value = String(Math.max(windowState[dimension] || min, min));
+
+      input.addEventListener("click", (event) => {
+        event.stopPropagation();
+      });
+
+      input.addEventListener("change", () => {
+        updateWindowSize(windowState, dimension, input.value);
+      });
+
+      control.append(labelText, input);
+      return control;
+    };
+
     secondaryWindows.forEach((windowState) => {
       const item = document.createElement("div");
       item.className = "window-manager-item";
 
       const title = document.createElement("span");
       title.textContent = windowState.title;
+      title.className = "window-manager-title";
 
+      const sizeControls = document.createElement("div");
+      sizeControls.className = "window-manager-size-controls";
       const deleteButton = document.createElement("button");
       deleteButton.className = "window-delete";
       deleteButton.type = "button";
@@ -1447,7 +1546,13 @@ document.addEventListener("DOMContentLoaded", () => {
         removeSecondaryWindow(windowState.id);
       });
 
-      item.append(title, deleteButton);
+      sizeControls.append(
+        createSizeControl(windowState, "width", "W", 240),
+        createSizeControl(windowState, "height", "H", 120),
+        deleteButton
+      );
+
+      item.append(title, sizeControls);
       windowManagerList.appendChild(item);
     });
   };
@@ -1544,6 +1649,8 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("show-footer-toggle");
   const alwaysShowPlayerToggle =
     document.getElementById("always-show-player-toggle");
+  const showCornerAidToggle =
+    document.getElementById("show-corner-aid-toggle");
 
   if (showRankToggle) {
     showRankToggle.checked = settingsState.showRanks;
@@ -1588,6 +1695,16 @@ document.addEventListener("DOMContentLoaded", () => {
       settingsState.alwaysShowPlayer = alwaysShowPlayerToggle.checked;
       localStorage.setItem("alwaysShowPlayer", String(settingsState.alwaysShowPlayer));
       refreshRows({ snap: true });
+    });
+  }
+
+  if (showCornerAidToggle) {
+    showCornerAidToggle.checked = settingsState.showCornerAid;
+
+    showCornerAidToggle.addEventListener("change", () => {
+      settingsState.showCornerAid = showCornerAidToggle.checked;
+      localStorage.setItem("showCornerAid", String(settingsState.showCornerAid));
+      applyOverlaySettings();
     });
   }
 
@@ -1977,6 +2094,7 @@ document.addEventListener("DOMContentLoaded", () => {
     settingsState.showDeaths = DEFAULT_SETTINGS.showDeaths;
     settingsState.showFooter = DEFAULT_SETTINGS.showFooter;
     settingsState.alwaysShowPlayer = DEFAULT_SETTINGS.alwaysShowPlayer;
+    settingsState.showCornerAid = DEFAULT_SETTINGS.showCornerAid;
     settingsState.showMeterBg = DEFAULT_SETTINGS.showMeterBg;
     settingsState.meterBgColor = DEFAULT_SETTINGS.meterBgColor;
     settingsState.meterBgOpacity = DEFAULT_SETTINGS.meterBgOpacity;
@@ -1990,6 +2108,7 @@ document.addEventListener("DOMContentLoaded", () => {
     localStorage.setItem("showDeaths", String(settingsState.showDeaths));
     localStorage.setItem("showFooter", String(settingsState.showFooter));
     localStorage.setItem("alwaysShowPlayer", String(settingsState.alwaysShowPlayer));
+    localStorage.setItem("showCornerAid", String(settingsState.showCornerAid));
     localStorage.setItem("showMeterBg", String(settingsState.showMeterBg));
     localStorage.setItem("meterBgColor", settingsState.meterBgColor);
     localStorage.setItem("meterBgOpacity", settingsState.meterBgOpacity);
@@ -2016,6 +2135,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (alwaysShowPlayerToggle) {
       alwaysShowPlayerToggle.checked = settingsState.alwaysShowPlayer;
+    }
+
+    if (showCornerAidToggle) {
+      showCornerAidToggle.checked = settingsState.showCornerAid;
     }
 
     if (showMeterBgToggle) {

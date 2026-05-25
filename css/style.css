@@ -80,6 +80,10 @@ body {
   display: none;
 }
 
+.meter-window.hide-corner-aid .overlay-corner-aid {
+  display: none;
+}
+
 #settings-menu,
 #preferences-window,
 #window-manager {
@@ -331,21 +335,40 @@ body {
   color: #ffffff;
 }
 
+.overlay-corner-aid {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  z-index: 20;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  opacity: 0.78;
+}
+
 .resize-grip {
   position: absolute;
   right: 3px;
   bottom: 3px;
-  z-index: 12;
-  width: 14px;
-  height: 14px;
-  border-right: 2px solid rgba(111, 157, 255, 0.82);
-  border-bottom: 2px solid rgba(111, 157, 255, 0.82);
+  z-index: 20;
+  width: 16px;
+  height: 16px;
   cursor: nwse-resize;
   opacity: 0.72;
 }
 
-.resize-grip::before,
-.resize-grip::after {
+.overlay-corner-aid.resize-grip {
+  pointer-events: auto;
+}
+
+.secondary-window .resize-grip {
+  border-right: 2px solid rgba(111, 157, 255, 0.82);
+  border-bottom: 2px solid rgba(111, 157, 255, 0.82);
+  box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.65);
+}
+
+.secondary-window .resize-grip::before,
+.secondary-window .resize-grip::after {
   content: "";
   position: absolute;
   right: 1px;
@@ -354,14 +377,14 @@ body {
   border-bottom: 1px solid rgba(255, 255, 255, 0.56);
 }
 
-.resize-grip::before {
-  width: 8px;
-  height: 8px;
+.secondary-window .resize-grip::before {
+  width: 9px;
+  height: 9px;
 }
 
-.resize-grip::after {
-  width: 4px;
-  height: 4px;
+.secondary-window .resize-grip::after {
+  width: 5px;
+  height: 5px;
 }
 
 .meter-window:hover .resize-grip,
@@ -371,6 +394,30 @@ body {
 
 .meter-window.is-resizing {
   user-select: none;
+}
+
+.overlay-corner-aid::before,
+.overlay-corner-aid::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  border-right: 2px solid rgba(111, 157, 255, 0.9);
+  border-bottom: 2px solid rgba(111, 157, 255, 0.9);
+  box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.65);
+}
+
+.overlay-corner-aid::before {
+  width: 14px;
+  height: 14px;
+}
+
+.overlay-corner-aid::after {
+  width: 8px;
+  height: 8px;
+  right: 4px;
+  bottom: 4px;
+  border-color: rgba(255, 255, 255, 0.72);
 }
 
 .bar {
@@ -763,7 +810,7 @@ body {
   top: 48px;
   right: 8px;
   z-index: 10001;
-  width: 230px;
+  width: 270px;
   border-radius: 4px;
   background: rgba(8, 10, 14, 0.98);
   border: 1px solid rgba(255, 255, 255, 0.18);
@@ -804,11 +851,11 @@ body {
 
 .window-manager-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
   gap: 8px;
   min-height: 28px;
-  padding: 0 4px;
+  padding: 7px;
   border-radius: 3px;
   background: rgba(255, 255, 255, 0.04);
   color: white;
@@ -816,15 +863,49 @@ body {
   font-weight: 800;
 }
 
-.window-manager-item span {
+.window-manager-title {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.window-manager-size-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: end;
+  gap: 6px;
+}
+
+.window-manager-size-control {
+  display: grid;
+  gap: 3px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+.window-manager-size-control input {
+  width: 100%;
+  height: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  padding: 0 5px;
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.window-manager-size-control input:focus {
+  outline: 1px solid rgba(111, 157, 255, 0.72);
+  outline-offset: 0;
+}
+
 .window-delete {
-  height: 22px;
+  height: 24px;
   border: 0;
   border-radius: 2px;
   background: rgba(255, 95, 95, 0.16);
