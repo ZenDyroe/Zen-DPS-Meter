@@ -202,6 +202,9 @@ function applyOverlaySettings() {
   const bgColorRgb = hexToRgb(settingsState.meterBgColor);
   const overlayBg = `rgba(${bgColorRgb}, ${settingsState.meterBgOpacity})`;
 
+  document.documentElement.classList.toggle("click-through-body", settingsState.clickThroughBody);
+  document.body.classList.toggle("click-through-body", settingsState.clickThroughBody);
+
   document.querySelectorAll(".meter-window").forEach((meterWindow) => {
     meterWindow.classList.toggle("hide-ranks", !settingsState.showRanks);
     meterWindow.classList.toggle("show-deaths", settingsState.showDeaths);

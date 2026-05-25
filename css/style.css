@@ -29,6 +29,19 @@ body {
   color: var(--text);
 }
 
+html.click-through-body,
+body.click-through-body {
+  pointer-events: none;
+}
+
+body.click-through-body .topbar,
+body.click-through-body #settings-menu,
+body.click-through-body #preferences-window,
+body.click-through-body #window-manager,
+body.click-through-body .secondary-settings-menu {
+  pointer-events: auto;
+}
+
 #overlay {
   position: relative;
   z-index: 950;
@@ -67,18 +80,6 @@ body {
     minmax(80px, 1fr)
     clamp(60px, 18%, 90px)
     clamp(40px, 12%, 60px);
-}
-
-.meter-window.click-through-body {
-  pointer-events: none;
-}
-
-.meter-window.click-through-body .topbar,
-.meter-window.click-through-body #settings-menu,
-.meter-window.click-through-body #preferences-window,
-.meter-window.click-through-body #window-manager,
-.meter-window.click-through-body .secondary-settings-menu {
-  pointer-events: auto;
 }
 
 .meter-window.no-meter-bg {
