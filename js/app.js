@@ -1859,13 +1859,11 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
           <button class="mode-button" type="button">${getModeLabel(windowElement.dataset.mode)}</button>
           <button class="menu-button secondary-menu-button" type="button" title="Window menu">&#8942;</button>
-          <button class="secondary-window-close" type="button" title="Close window">&times;</button>
         </div>
       `;
 
       const modeButton = header.querySelector(".mode-button");
       const menuButton = header.querySelector(".secondary-menu-button");
-      const closeButton = header.querySelector(".secondary-window-close");
 
       makeSecondaryWindowDraggable(windowElement, header, windowState, () => {
         saveSecondaryWindows(secondaryWindows);
@@ -1904,7 +1902,14 @@ document.addEventListener("DOMContentLoaded", () => {
         existingMenu?.classList.toggle("hidden");
       });
 
-      closeButton?.addEventListener("click", (event) => {
+      const secondaryMenu = document.createElement("section");
+      secondaryMenu.className = "settings-menu secondary-settings-menu hidden";
+      secondaryMenu.innerHTML = `
+        <button class="settings-action secondary-close-window" type="button">Close Window</button>
+      `;
+
+      const closeWindowButton = secondaryMenu.querySelector(".secondary-close-window");
+      closeWindowButton?.addEventListener("click", (event) => {
         event.stopPropagation();
         removeSecondaryWindow(windowState.id);
       });
@@ -1919,7 +1924,7 @@ document.addEventListener("DOMContentLoaded", () => {
         </section>
       `;
 
-      windowElement.append(header, body);
+      windowElement.append(header, secondaryMenu, body);
       secondaryWindowsContainer.appendChild(windowElement);
       updateMeterChrome(windowElement, state.lastEncounter || {}, state.lastRows || []);
       renderRowsForMeter(windowElement, state.lastRows || [], { snap: true });
