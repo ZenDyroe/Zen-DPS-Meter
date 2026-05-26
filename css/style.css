@@ -971,15 +971,7 @@ body {
 
 .preferences-title-block {
   display: grid;
-  gap: 1px;
   min-width: 0;
-}
-
-.preferences-title-block small {
-  color: var(--meter-text-color);
-  font-size: 9px;
-  font-weight: 700;
-  opacity: 0.68;
 }
 
 .preferences-close {
