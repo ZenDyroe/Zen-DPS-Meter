@@ -554,10 +554,10 @@ body {
 
 .preferences-body .settings-field,
 .preferences-body .settings-row {
-  min-height: 32px;
-  padding: 0 8px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.025);
+  min-height: 38px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .preferences-body .settings-field:hover,
@@ -572,7 +572,8 @@ body {
 .preferences-body .settings-row span,
 .preferences-body .settings-field > span {
   min-width: 0;
-  color: #f0f3f8;
+  color: var(--meter-text-color);
+  line-height: 1.2;
 }
 
 .preferences-body .settings-row input[type="checkbox"] {
@@ -627,7 +628,11 @@ body {
 .color-picker-panel {
   display: grid;
   gap: 8px;
-  margin-top: 8px;
+  margin: 0 0 4px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.16);
 }
 
 .color-picker-map-wrap {
@@ -639,7 +644,7 @@ body {
 
 .color-picker-map {
   position: relative;
-  height: 120px;
+  height: 136px;
   border-radius: 3px;
   background:
     linear-gradient(to top, #000000, rgba(0, 0, 0, 0)),
@@ -705,7 +710,7 @@ body {
 }
 
 .settings-field input[type="range"] {
-  width: 95px;
+  width: 150px;
 }
 
 .settings-field input[type="number"].short-number-input {
@@ -744,8 +749,8 @@ body {
   display: grid;
   grid-template-columns: 1fr 42px;
   align-items: center;
-  gap: 7px;
-  width: 150px;
+  gap: 8px;
+  width: min(190px, 100%);
 }
 
 .range-with-value input[type="range"] {
@@ -766,16 +771,16 @@ body {
 }
 
 .segmented-control {
-  display: flex;
-  width: 116px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  width: 150px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 4px;
+  border-radius: 6px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.04);
 }
 
 .segmented-button {
-  flex: 1;
   height: 24px;
   min-width: 0;
   border: 0;
@@ -817,19 +822,21 @@ body {
 }
 
 .preferences-window {
-  position: absolute;
-  top: 48px;
-  right: 8px;
+  position: fixed;
+  top: clamp(12px, 6vh, 48px);
+  left: 50%;
   z-index: 10000;
-  width: 286px;
-  max-height: calc(100vh - 56px);
-  border-radius: 6px;
-  background: rgba(9, 11, 16, 0.985);
-  border: 1px solid rgba(171, 195, 255, 0.2);
+  width: min(760px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  border-radius: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
   box-shadow:
-    0 16px 42px rgba(0, 0, 0, 0.74),
+    0 22px 60px rgba(0, 0, 0, 0.78),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  color: var(--meter-text-color);
   overflow: hidden;
+  transform: translateX(-50%);
 }
 
 .window-manager {
@@ -951,28 +958,48 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 34px;
-  padding: 0 10px;
+  min-height: 50px;
+  padding: 10px 14px 10px 16px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.035));
+    linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.035));
   border-bottom: 1px solid rgba(171, 195, 255, 0.18);
-  color: #ffffff;
-  font-size: 12px;
+  color: var(--meter-text-color);
+  font-size: 15px;
   font-weight: 900;
+  cursor: move;
+  user-select: none;
+}
+
+.preferences-title-block {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.preferences-title-block small {
+  color: var(--meter-text-color);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
 }
 
 .preferences-close {
   position: relative;
   z-index: 10002;
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   border: 0;
-  border-radius: 2px;
-  background: transparent;
-  color: #d8d8d8;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--meter-text-color);
   font-size: 18px;
   line-height: 1;
   cursor: pointer;
+}
+
+.preferences-window.is-dragging {
+  opacity: 0.96;
+  user-select: none;
 }
 
 .preferences-close:hover {
@@ -981,33 +1008,63 @@ body {
 }
 
 .preferences-body {
-  max-height: calc(100vh - 88px);
+  max-height: calc(100vh - 84px);
   overflow-y: auto;
   display: grid;
-  gap: 10px;
-  padding: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 12px;
+  padding: 14px;
   scrollbar-color: rgba(111, 157, 255, 0.55) rgba(255, 255, 255, 0.04);
   scrollbar-width: thin;
 }
 
 .preferences-section {
   display: grid;
-  gap: 5px;
-  padding-bottom: 2px;
+  gap: 7px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
 
 .preferences-section + .preferences-section {
-  padding-top: 9px;
-  border-top: 1px solid rgba(255, 255, 255, 0.09);
+  padding-top: 10px;
 }
 
 .preferences-section-title {
-  padding: 0 2px 2px;
-  color: rgba(184, 199, 232, 0.82);
-  font-size: 9px;
+  padding: 0 2px 4px;
+  color: var(--meter-text-color);
+  font-size: 10px;
   font-weight: 900;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
+}
+
+@media (max-width: 620px) {
+  .preferences-window {
+    top: 8px;
+    width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+  }
+
+  .preferences-body {
+    grid-template-columns: 1fr;
+    max-height: calc(100vh - 78px);
+    padding: 10px;
+  }
+
+  .settings-field {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: stretch;
+  }
+
+  .settings-field input[type="range"],
+  .segmented-control,
+  .range-with-value {
+    width: 100%;
+  }
 }
 
 .preferences-window,

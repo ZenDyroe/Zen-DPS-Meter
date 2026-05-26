@@ -232,6 +232,15 @@ function applyOverlaySettings() {
   const bgColorRgb = hexToRgb(settingsState.meterBgColor);
   const overlayBg = `rgba(${bgColorRgb}, ${settingsState.meterBgOpacity})`;
 
+  document.documentElement.style.setProperty("--meter-bg-color", bgColorRgb);
+  document.documentElement.style.setProperty("--meter-bg-opacity", settingsState.meterBgOpacity);
+  document.documentElement.style.setProperty("--bg", overlayBg);
+  document.documentElement.style.setProperty("--meter-text-color", settingsState.textColor);
+  document.documentElement.style.setProperty(
+    "--meter-text-stroke-width",
+    `${clampTextStrokeWidth(settingsState.textStrokeWidth)}px`
+  );
+
   document.querySelectorAll(".meter-window").forEach((meterWindow) => {
     meterWindow.classList.toggle("hide-ranks", !settingsState.showRanks);
     meterWindow.classList.toggle("show-deaths", settingsState.showDeaths);
@@ -1559,6 +1568,62 @@ function makeMeterResizable(meterElement, getSize, setSize, saveSize) {
   }, true);
 }
 
+function makePanelDraggable(panel, handle) {
+  if (!panel || !handle) return;
+
+  handle.addEventListener("mousedown", (event) => {
+    if (
+      event.target instanceof HTMLElement &&
+      event.target.closest("button, input, select, textarea")
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const rect = panel.getBoundingClientRect();
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const originX = rect.left;
+    const originY = rect.top;
+
+    panel.style.left = `${originX}px`;
+    panel.style.top = `${originY}px`;
+    panel.style.right = "auto";
+    panel.style.transform = "none";
+    panel.classList.add("is-dragging");
+
+    const movePanel = (moveEvent) => {
+      moveEvent.preventDefault();
+      moveEvent.stopPropagation();
+
+      const nextX = Math.max(
+        4,
+        Math.min(originX + moveEvent.clientX - startX, window.innerWidth - panel.offsetWidth - 4)
+      );
+      const nextY = Math.max(
+        4,
+        Math.min(originY + moveEvent.clientY - startY, window.innerHeight - panel.offsetHeight - 4)
+      );
+
+      panel.style.left = `${Math.round(nextX)}px`;
+      panel.style.top = `${Math.round(nextY)}px`;
+    };
+
+    const stopDrag = (stopEvent) => {
+      stopEvent?.preventDefault?.();
+      stopEvent?.stopPropagation?.();
+      panel.classList.remove("is-dragging");
+      document.removeEventListener("mousemove", movePanel, true);
+      document.removeEventListener("mouseup", stopDrag, true);
+    };
+
+    document.addEventListener("mousemove", movePanel, true);
+    document.addEventListener("mouseup", stopDrag, true);
+  }, true);
+}
+
 function makeSecondaryWindowDraggable(windowElement, header, windowState, saveWindows) {
   windowElement.addEventListener("mousedown", (event) => {
     if (
@@ -1997,18 +2062,7 @@ document.addEventListener("DOMContentLoaded", () => {
   closePreferencesButton?.addEventListener("mousedown", closePreferences, true);
   closePreferencesButton?.addEventListener("mouseup", closePreferences, true);
   closePreferencesButton?.addEventListener("click", closePreferences, true);
-
-  preferencesWindow?.addEventListener("pointerdown", (event) => {
-    if (event.target instanceof HTMLElement && event.target.closest(".preferences-header")) {
-      closePreferences(event);
-    }
-  }, true);
-
-  preferencesWindow?.addEventListener("click", (event) => {
-    if (event.target instanceof HTMLElement && event.target.closest(".preferences-header")) {
-      closePreferences(event);
-    }
-  }, true);
+  makePanelDraggable(preferencesWindow, preferencesWindow?.querySelector(".preferences-header"));
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && preferencesWindow && !preferencesWindow.classList.contains("hidden")) {

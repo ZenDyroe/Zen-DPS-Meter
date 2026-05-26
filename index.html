@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>FFXIV DPS Overlay</title>
-  <link rel="stylesheet" href="./css/style.css?v=20260525-42" />
+  <link rel="stylesheet" href="./css/style.css?v=20260525-44" />
 </head>
 
 <body>
@@ -80,12 +80,10 @@
     <section id="preferences-window" class="preferences-window hidden">
 
       <div class="preferences-header">
-        <span
-          role="button"
-          title="Close preferences"
-          onpointerdown="return window.zenClosePreferences && window.zenClosePreferences(event)"
-          onclick="return window.zenClosePreferences && window.zenClosePreferences(event)"
-        >Preferences</span>
+        <div class="preferences-title-block">
+          <span>Preferences</span>
+          <small>Display, appearance, and window behavior</small>
+        </div>
 
         <button
           id="close-preferences"
@@ -325,6 +323,6 @@
     Normal ACT/OverlayPlugin URLs without those query parameters use live ACT data only.
   -->
   <script src="./js/mock-data.js?v=20260525-27"></script>
-  <script src="./js/app.js?v=20260525-42"></script>
+  <script src="./js/app.js?v=20260525-44"></script>
 </body>
 </html>
