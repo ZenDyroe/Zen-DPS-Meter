@@ -1201,6 +1201,7 @@ function createSecondaryWindowState(existingWindows) {
     width: 300,
     height: 220,
     mode: "dps",
+    locked: false,
   };
 }
 
@@ -1648,6 +1649,10 @@ function makeSecondaryWindowDraggable(windowElement, header, windowState, saveWi
   const startDrag = (event) => {
     event.stopPropagation();
 
+    if (windowState.locked) {
+      return;
+    }
+
     if (
       event.target instanceof HTMLElement &&
       event.target.closest("button, input, select, textarea, .secondary-settings-menu")
@@ -1835,6 +1840,7 @@ document.addEventListener("DOMContentLoaded", () => {
       windowElement.className = "secondary-window meter-window";
       windowElement.dataset.windowId = windowState.id;
       windowElement.dataset.mode = windowState.mode || "dps";
+      windowElement.classList.toggle("is-locked", windowState.locked === true);
       windowElement.classList.toggle("is-empty", !state.lastRows || state.lastRows.length === 0);
       windowElement.style.left = `${windowState.x}px`;
       windowElement.style.top = `${windowState.y}px`;
@@ -1905,10 +1911,20 @@ document.addEventListener("DOMContentLoaded", () => {
       const secondaryMenu = document.createElement("section");
       secondaryMenu.className = "settings-menu secondary-settings-menu hidden";
       secondaryMenu.innerHTML = `
+        <button class="settings-action secondary-lock-window" type="button">${windowState.locked ? "Unlock" : "Lock"}</button>
         <button class="settings-action secondary-close-window" type="button">Close Window</button>
       `;
 
+      const lockWindowButton = secondaryMenu.querySelector(".secondary-lock-window");
       const closeWindowButton = secondaryMenu.querySelector(".secondary-close-window");
+      lockWindowButton?.addEventListener("click", (event) => {
+        event.stopPropagation();
+        windowState.locked = !windowState.locked;
+        saveSecondaryWindows(secondaryWindows);
+        renderSecondaryWindows();
+        renderWindowManagerList();
+      });
+
       closeWindowButton?.addEventListener("click", (event) => {
         event.stopPropagation();
         removeSecondaryWindow(windowState.id);

@@ -1097,6 +1097,10 @@ body {
   cursor: move;
 }
 
+.secondary-window.is-locked .topbar {
+  cursor: default;
+}
+
 .secondary-window .topbar button {
   cursor: pointer;
 }
