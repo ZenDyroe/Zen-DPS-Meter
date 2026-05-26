@@ -228,25 +228,6 @@ function getAutoCombatantsHeight(rowCount) {
   return headerHeight + (visibleRows * rowHeight) + (visibleRows * rowGap);
 }
 
-function applyAutoWindowHeight(meterRoot, rowCount) {
-  if (!settingsState.autoGrowWindows || !meterRoot) return;
-
-  const container = meterRoot.querySelector(".combatants");
-  if (!container) return;
-
-  const minHeight = meterRoot.id === "overlay" ? 80 : 120;
-  const currentContainerHeight = Math.max(container.clientHeight, 0);
-  const chromeHeight = Math.max(meterRoot.offsetHeight - currentContainerHeight, 0);
-  const nextHeight = Math.max(minHeight, Math.ceil(chromeHeight + getAutoCombatantsHeight(rowCount)));
-
-  meterRoot.style.height = `${nextHeight}px`;
-
-  const windowState = getSecondaryWindowStateByElement(meterRoot);
-  if (windowState) {
-    keepWindowInOverlayBounds(windowState, meterRoot);
-  }
-}
-
 function applyOverlaySettings() {
   const bgColorRgb = hexToRgb(settingsState.meterBgColor);
   const overlayBg = `rgba(${bgColorRgb}, ${settingsState.meterBgOpacity})`;
@@ -1227,8 +1208,21 @@ function keepWindowInOverlayBounds(windowState, windowElement) {
 const WINDOW_SNAP_DISTANCE = 12;
 const WINDOW_ATTACH_DISTANCE = 2;
 
+function getRectFromElement(element) {
+  const rect = element.getBoundingClientRect();
+
+  return {
+    left: rect.left,
+    top: rect.top,
+    width: rect.width,
+    height: rect.height,
+    right: rect.right,
+    bottom: rect.bottom,
+  };
+}
+
 function rectsOverlapOnAxis(startA, endA, startB, endB) {
-  return Math.min(endA, endB) - Math.max(startA, startB) > 0;
+  return Math.min(endA, endB) - Math.max(startA, startB) >= -WINDOW_ATTACH_DISTANCE;
 }
 
 function getSecondaryWindowElement(windowId) {
@@ -1237,6 +1231,8 @@ function getSecondaryWindowElement(windowId) {
 
 function getWindowRectFromState(windowState) {
   const element = getSecondaryWindowElement(windowState.id);
+  if (element) return getRectFromElement(element);
+
   const width = element?.offsetWidth || windowState.width || 300;
   const height = element?.offsetHeight || windowState.height || 220;
 
@@ -1261,6 +1257,112 @@ function areWindowsAttached(rectA, rectB) {
   const horizontalOverlap = rectsOverlapOnAxis(rectA.left, rectA.right, rectB.left, rectB.right);
 
   return (horizontalTouch && verticalOverlap) || (verticalTouch && horizontalOverlap);
+}
+
+function moveSecondaryWindowBy(windowState, dx, dy) {
+  const element = getSecondaryWindowElement(windowState.id);
+  if (!element) return;
+
+  windowState.x = Math.round((windowState.x || 0) + dx);
+  windowState.y = Math.round((windowState.y || 0) + dy);
+  keepWindowInOverlayBounds(windowState, element);
+}
+
+function moveWindowsAttachedToResize(meterRoot, beforeRect, afterRect) {
+  if (!settingsState.snapWindows || !currentSecondaryWindows || !beforeRect || !afterRect) return;
+
+  const resizedWindowState = getSecondaryWindowStateByElement(meterRoot);
+  const resizedWindowId = resizedWindowState?.id || null;
+  const dxRight = afterRect.right - beforeRect.right;
+  const dyBottom = afterRect.bottom - beforeRect.bottom;
+  const movedWindowIds = new Set();
+  const beforeSecondaryRects = new Map(
+    currentSecondaryWindows.map((windowState) => [
+      windowState.id,
+      getWindowRectFromState(windowState),
+    ])
+  );
+
+  const moveAttachedToRect = (targetRect, dx, dy) => {
+    if (dx === 0 && dy === 0) return false;
+
+    let moved = false;
+    currentSecondaryWindows.forEach((windowState) => {
+      if (windowState.id === resizedWindowId || movedWindowIds.has(windowState.id)) return;
+      const candidateRect = beforeSecondaryRects.get(windowState.id);
+      if (!candidateRect || !areWindowsAttached(candidateRect, targetRect)) return;
+
+      moveSecondaryWindowBy(windowState, dx, dy);
+      movedWindowIds.add(windowState.id);
+      moved = true;
+    });
+
+    return moved;
+  };
+
+  const rightEdgeRect = {
+    left: beforeRect.right,
+    right: beforeRect.right,
+    top: beforeRect.top,
+    bottom: beforeRect.bottom,
+  };
+  const bottomEdgeRect = {
+    left: beforeRect.left,
+    right: beforeRect.right,
+    top: beforeRect.bottom,
+    bottom: beforeRect.bottom,
+  };
+
+  moveAttachedToRect(rightEdgeRect, dxRight, 0);
+  moveAttachedToRect(bottomEdgeRect, 0, dyBottom);
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    currentSecondaryWindows.forEach((targetWindow) => {
+      if (!movedWindowIds.has(targetWindow.id)) return;
+
+      const targetRect = beforeSecondaryRects.get(targetWindow.id);
+      if (!targetRect) return;
+
+      currentSecondaryWindows.forEach((candidate) => {
+        if (candidate.id === resizedWindowId || movedWindowIds.has(candidate.id)) return;
+        const candidateRect = beforeSecondaryRects.get(candidate.id);
+        if (!candidateRect || !areWindowsAttached(candidateRect, targetRect)) return;
+
+        moveSecondaryWindowBy(candidate, dxRight, dyBottom);
+        movedWindowIds.add(candidate.id);
+        changed = true;
+      });
+    });
+  }
+
+  if (movedWindowIds.size > 0) {
+    saveSecondaryWindows(currentSecondaryWindows);
+  }
+}
+
+function applyAutoWindowHeight(meterRoot, rowCount) {
+  if (!settingsState.autoGrowWindows || !meterRoot) return;
+
+  const container = meterRoot.querySelector(".combatants");
+  if (!container) return;
+
+  const beforeRect = getRectFromElement(meterRoot);
+  const minHeight = meterRoot.id === "overlay" ? 80 : 120;
+  const currentContainerHeight = Math.max(container.clientHeight, 0);
+  const chromeHeight = Math.max(meterRoot.offsetHeight - currentContainerHeight, 0);
+  const nextHeight = Math.max(minHeight, Math.ceil(chromeHeight + getAutoCombatantsHeight(rowCount)));
+
+  meterRoot.style.height = `${nextHeight}px`;
+
+  const windowState = getSecondaryWindowStateByElement(meterRoot);
+  if (windowState) {
+    keepWindowInOverlayBounds(windowState, meterRoot);
+  }
+
+  const afterRect = getRectFromElement(meterRoot);
+  moveWindowsAttachedToResize(meterRoot, beforeRect, afterRect);
 }
 
 function collectAttachedWindowGroup(activeWindowState) {
