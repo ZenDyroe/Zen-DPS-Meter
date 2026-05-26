@@ -129,11 +129,15 @@ const DEFAULT_SETTINGS = {
   showFooter: true,
   alwaysShowPlayer: false,
   showCornerAid: true,
+  autoGrowWindows: false,
+  snapWindows: false,
   showMeterBg: true,
   meterBgColor: "#050608",
   meterBgOpacity: "0.88",
   barColorMode: "job",
   barCustomColor: "#4974C4",
+  textColor: "#FFFFFF",
+  textStrokeWidth: 0,
   barHeight: 24,
   barMaximum: 8,
 };
@@ -157,6 +161,12 @@ const settingsState = {
   showCornerAid:
     localStorage.getItem("showCornerAid") !== "false",
 
+  autoGrowWindows:
+    localStorage.getItem("autoGrowWindows") === "true",
+
+  snapWindows:
+    localStorage.getItem("snapWindows") === "true",
+
   showMeterBg:
     localStorage.getItem("showMeterBg") !== "false",
 
@@ -171,6 +181,12 @@ const settingsState = {
 
   barCustomColor:
     localStorage.getItem("barCustomColor") || DEFAULT_SETTINGS.barCustomColor,
+
+  textColor:
+    localStorage.getItem("textColor") || DEFAULT_SETTINGS.textColor,
+
+  textStrokeWidth:
+    clampTextStrokeWidth(Number(localStorage.getItem("textStrokeWidth")) || DEFAULT_SETTINGS.textStrokeWidth),
 
   barHeight:
     clampBarHeight(Number(localStorage.getItem("barHeight")) || DEFAULT_SETTINGS.barHeight),
@@ -189,6 +205,11 @@ function clampBarMaximum(value) {
   return Math.max(1, Math.min(24, Math.round(value)));
 }
 
+function clampTextStrokeWidth(value) {
+  if (!Number.isFinite(value)) return DEFAULT_SETTINGS.textStrokeWidth;
+  return Math.max(0, Math.min(3, Math.round(value * 4) / 4));
+}
+
 function getCombatantsMaxHeight() {
   const rowHeight = clampBarHeight(settingsState.barHeight);
   const maximumRows = clampBarMaximum(settingsState.barMaximum);
@@ -196,6 +217,34 @@ function getCombatantsMaxHeight() {
   const headerHeight = 9;
 
   return headerHeight + (maximumRows * rowHeight) + (maximumRows * rowGap);
+}
+
+function getAutoCombatantsHeight(rowCount) {
+  const rowHeight = clampBarHeight(settingsState.barHeight);
+  const visibleRows = Math.min(Math.max(rowCount, 0), clampBarMaximum(settingsState.barMaximum));
+  const rowGap = 2;
+  const headerHeight = 9;
+
+  return headerHeight + (visibleRows * rowHeight) + (visibleRows * rowGap);
+}
+
+function applyAutoWindowHeight(meterRoot, rowCount) {
+  if (!settingsState.autoGrowWindows || !meterRoot) return;
+
+  const container = meterRoot.querySelector(".combatants");
+  if (!container) return;
+
+  const minHeight = meterRoot.id === "overlay" ? 80 : 120;
+  const currentContainerHeight = Math.max(container.clientHeight, 0);
+  const chromeHeight = Math.max(meterRoot.offsetHeight - currentContainerHeight, 0);
+  const nextHeight = Math.max(minHeight, Math.ceil(chromeHeight + getAutoCombatantsHeight(rowCount)));
+
+  meterRoot.style.height = `${nextHeight}px`;
+
+  const windowState = getSecondaryWindowStateByElement(meterRoot);
+  if (windowState) {
+    keepWindowInOverlayBounds(windowState, meterRoot);
+  }
 }
 
 function applyOverlaySettings() {
@@ -212,12 +261,19 @@ function applyOverlaySettings() {
     meterWindow.style.setProperty("--meter-bg-opacity", settingsState.meterBgOpacity);
     meterWindow.style.setProperty("--bg", overlayBg);
     meterWindow.style.setProperty("--row-height", `${clampBarHeight(settingsState.barHeight)}px`);
+    meterWindow.style.setProperty("--meter-text-color", settingsState.textColor);
+    meterWindow.style.setProperty(
+      "--meter-text-stroke-width",
+      `${clampTextStrokeWidth(settingsState.textStrokeWidth)}px`
+    );
 
     const combatants = meterWindow.querySelector(".combatants");
     if (combatants) {
       combatants.style.maxHeight = `${getCombatantsMaxHeight()}px`;
       updatePinnedPlayerState(combatants);
     }
+
+    applyAutoWindowHeight(meterWindow, state.lastRows?.length || 0);
   });
 }
 
@@ -738,9 +794,11 @@ function renderRowsForMeter(meterRoot, rows, options = {}) {
     requestAnimationFrame(() => {
       container.classList.remove("snap-bars");
       updatePinnedPlayerState(container);
+      applyAutoWindowHeight(meterRoot, rows.length);
     });
   }
 
+  applyAutoWindowHeight(meterRoot, rows.length);
   updatePinnedPlayerState(container);
 }
 
@@ -1166,6 +1224,181 @@ function keepWindowInOverlayBounds(windowState, windowElement) {
   windowElement.style.top = `${windowState.y}px`;
 }
 
+const WINDOW_SNAP_DISTANCE = 12;
+const WINDOW_ATTACH_DISTANCE = 2;
+
+function rectsOverlapOnAxis(startA, endA, startB, endB) {
+  return Math.min(endA, endB) - Math.max(startA, startB) > 0;
+}
+
+function getSecondaryWindowElement(windowId) {
+  return document.querySelector(`.secondary-window[data-window-id="${windowId}"]`);
+}
+
+function getWindowRectFromState(windowState) {
+  const element = getSecondaryWindowElement(windowState.id);
+  const width = element?.offsetWidth || windowState.width || 300;
+  const height = element?.offsetHeight || windowState.height || 220;
+
+  return {
+    left: windowState.x || 0,
+    top: windowState.y || 0,
+    width,
+    height,
+    right: (windowState.x || 0) + width,
+    bottom: (windowState.y || 0) + height,
+  };
+}
+
+function areWindowsAttached(rectA, rectB) {
+  const horizontalTouch =
+    Math.abs(rectA.right - rectB.left) <= WINDOW_ATTACH_DISTANCE ||
+    Math.abs(rectA.left - rectB.right) <= WINDOW_ATTACH_DISTANCE;
+  const verticalOverlap = rectsOverlapOnAxis(rectA.top, rectA.bottom, rectB.top, rectB.bottom);
+  const verticalTouch =
+    Math.abs(rectA.bottom - rectB.top) <= WINDOW_ATTACH_DISTANCE ||
+    Math.abs(rectA.top - rectB.bottom) <= WINDOW_ATTACH_DISTANCE;
+  const horizontalOverlap = rectsOverlapOnAxis(rectA.left, rectA.right, rectB.left, rectB.right);
+
+  return (horizontalTouch && verticalOverlap) || (verticalTouch && horizontalOverlap);
+}
+
+function collectAttachedWindowGroup(activeWindowState) {
+  if (!settingsState.snapWindows || !currentSecondaryWindows || !activeWindowState) {
+    return [activeWindowState].filter(Boolean);
+  }
+
+  const group = new Map([[activeWindowState.id, activeWindowState]]);
+  let changed = true;
+
+  while (changed) {
+    changed = false;
+    currentSecondaryWindows.forEach((candidate) => {
+      if (group.has(candidate.id)) return;
+
+      const candidateRect = getWindowRectFromState(candidate);
+      const attachesToGroup = Array.from(group.values()).some((groupWindow) =>
+        areWindowsAttached(getWindowRectFromState(groupWindow), candidateRect)
+      );
+
+      if (attachesToGroup) {
+        group.set(candidate.id, candidate);
+        changed = true;
+      }
+    });
+  }
+
+  return Array.from(group.values());
+}
+
+function getSnapTargets(activeGroup) {
+  const activeIds = new Set(activeGroup.map((windowState) => windowState.id));
+  const targets = [];
+  const overlay = document.getElementById("overlay");
+
+  if (overlay) {
+    const rect = overlay.getBoundingClientRect();
+    targets.push({
+      left: rect.left,
+      top: rect.top,
+      right: rect.right,
+      bottom: rect.bottom,
+      width: rect.width,
+      height: rect.height,
+    });
+  }
+
+  (currentSecondaryWindows || []).forEach((windowState) => {
+    if (!activeIds.has(windowState.id)) {
+      targets.push(getWindowRectFromState(windowState));
+    }
+  });
+
+  return targets;
+}
+
+function getBestSnapDelta(activeRect, targets) {
+  let bestDx = null;
+  let bestDy = null;
+
+  targets.forEach((target) => {
+    const xCandidates = [
+      target.left - activeRect.left,
+      target.right - activeRect.right,
+      target.right - activeRect.left,
+      target.left - activeRect.right,
+    ];
+    const yCandidates = [
+      target.top - activeRect.top,
+      target.bottom - activeRect.bottom,
+      target.bottom - activeRect.top,
+      target.top - activeRect.bottom,
+    ];
+
+    xCandidates.forEach((dx) => {
+      if (Math.abs(dx) > WINDOW_SNAP_DISTANCE) return;
+      const movedTop = activeRect.top + (bestDy || 0);
+      const movedBottom = activeRect.bottom + (bestDy || 0);
+      if (!rectsOverlapOnAxis(movedTop, movedBottom, target.top, target.bottom)) return;
+      if (bestDx === null || Math.abs(dx) < Math.abs(bestDx)) {
+        bestDx = dx;
+      }
+    });
+
+    yCandidates.forEach((dy) => {
+      if (Math.abs(dy) > WINDOW_SNAP_DISTANCE) return;
+      const movedLeft = activeRect.left + (bestDx || 0);
+      const movedRight = activeRect.right + (bestDx || 0);
+      if (!rectsOverlapOnAxis(movedLeft, movedRight, target.left, target.right)) return;
+      if (bestDy === null || Math.abs(dy) < Math.abs(bestDy)) {
+        bestDy = dy;
+      }
+    });
+  });
+
+  return {
+    dx: bestDx || 0,
+    dy: bestDy || 0,
+  };
+}
+
+function clampGroupDelta(activeGroup, startPositions, dx, dy) {
+  const rects = activeGroup.map((windowState) => {
+    const start = startPositions.get(windowState.id);
+    return {
+      left: start.x,
+      top: start.y,
+      right: start.x + start.width,
+      bottom: start.y + start.height,
+    };
+  });
+
+  const bounds = {
+    left: Math.min(...rects.map((rect) => rect.left)),
+    top: Math.min(...rects.map((rect) => rect.top)),
+    right: Math.max(...rects.map((rect) => rect.right)),
+    bottom: Math.max(...rects.map((rect) => rect.bottom)),
+  };
+
+  return {
+    dx: Math.max(-bounds.left, Math.min(dx, window.innerWidth - bounds.right)),
+    dy: Math.max(-bounds.top, Math.min(dy, window.innerHeight - bounds.bottom)),
+  };
+}
+
+function moveWindowGroup(activeGroup, startPositions, dx, dy) {
+  activeGroup.forEach((groupWindow) => {
+    const start = startPositions.get(groupWindow.id);
+    const element = getSecondaryWindowElement(groupWindow.id);
+    if (!start || !element) return;
+
+    groupWindow.x = Math.round(start.x + dx);
+    groupWindow.y = Math.round(start.y + dy);
+    element.style.left = `${groupWindow.x}px`;
+    element.style.top = `${groupWindow.y}px`;
+  });
+}
+
 function makeResizeGrip() {
   const grip = document.createElement("div");
   grip.className = "resize-grip";
@@ -1259,24 +1492,60 @@ function makeSecondaryWindowDraggable(windowElement, header, windowState, saveWi
 
     const startX = event.clientX;
     const startY = event.clientY;
-    const originX = windowState.x || 0;
-    const originY = windowState.y || 0;
+    const activeGroup = collectAttachedWindowGroup(windowState);
+    const startPositions = new Map(
+      activeGroup.map((groupWindow) => {
+        const element = getSecondaryWindowElement(groupWindow.id);
+        return [
+          groupWindow.id,
+          {
+            x: groupWindow.x || 0,
+            y: groupWindow.y || 0,
+            width: element?.offsetWidth || groupWindow.width || 300,
+            height: element?.offsetHeight || groupWindow.height || 220,
+          },
+        ];
+      })
+    );
 
     windowElement.classList.add("is-dragging");
+    activeGroup.forEach((groupWindow) => {
+      getSecondaryWindowElement(groupWindow.id)?.classList.add("is-dragging");
+    });
 
     const moveWindow = (moveEvent) => {
       moveEvent.preventDefault();
       moveEvent.stopPropagation();
 
-      windowState.x = Math.round(originX + moveEvent.clientX - startX);
-      windowState.y = Math.round(originY + moveEvent.clientY - startY);
-      keepWindowInOverlayBounds(windowState, windowElement);
+      let dx = Math.round(moveEvent.clientX - startX);
+      let dy = Math.round(moveEvent.clientY - startY);
+
+      if (settingsState.snapWindows) {
+        const activeStart = startPositions.get(windowState.id);
+        if (!activeStart) return;
+        const activeRect = {
+          left: activeStart.x + dx,
+          top: activeStart.y + dy,
+          right: activeStart.x + activeStart.width + dx,
+          bottom: activeStart.y + activeStart.height + dy,
+          width: activeStart.width,
+          height: activeStart.height,
+        };
+        const snapDelta = getBestSnapDelta(activeRect, getSnapTargets(activeGroup));
+        dx += snapDelta.dx;
+        dy += snapDelta.dy;
+      }
+
+      const clamped = clampGroupDelta(activeGroup, startPositions, dx, dy);
+      moveWindowGroup(activeGroup, startPositions, clamped.dx, clamped.dy);
     };
 
     const stopDrag = (stopEvent) => {
       stopEvent?.preventDefault?.();
       stopEvent?.stopPropagation?.();
-      windowElement.classList.remove("is-dragging");
+      activeGroup.forEach((groupWindow) => {
+        getSecondaryWindowElement(groupWindow.id)?.classList.remove("is-dragging");
+      });
       document.removeEventListener("mousemove", moveWindow, true);
       document.removeEventListener("mouseup", stopDrag, true);
       saveWindows();
@@ -1369,6 +1638,20 @@ document.addEventListener("DOMContentLoaded", () => {
     saveSecondaryWindows(secondaryWindows);
     renderSecondaryWindows();
     renderWindowManagerList();
+  };
+
+  const restoreManualWindowHeights = () => {
+    if (overlay) {
+      overlay.style.height = `${Math.max(mainWindowSize.height, 80)}px`;
+    }
+
+    secondaryWindows.forEach((windowState) => {
+      const windowElement = getSecondaryWindowElement(windowState.id);
+      if (windowElement) {
+        windowElement.style.height = `${Math.max(windowState.height || 120, 120)}px`;
+        keepWindowInOverlayBounds(windowState, windowElement);
+      }
+    });
   };
 
   const removeSecondaryWindow = (windowId) => {
@@ -1651,6 +1934,10 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("always-show-player-toggle");
   const showCornerAidToggle =
     document.getElementById("show-corner-aid-toggle");
+  const autoGrowWindowsToggle =
+    document.getElementById("auto-grow-windows-toggle");
+  const snapWindowsToggle =
+    document.getElementById("snap-windows-toggle");
 
   if (showRankToggle) {
     showRankToggle.checked = settingsState.showRanks;
@@ -1708,6 +1995,28 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  if (autoGrowWindowsToggle) {
+    autoGrowWindowsToggle.checked = settingsState.autoGrowWindows;
+
+    autoGrowWindowsToggle.addEventListener("change", () => {
+      settingsState.autoGrowWindows = autoGrowWindowsToggle.checked;
+      localStorage.setItem("autoGrowWindows", String(settingsState.autoGrowWindows));
+      if (!settingsState.autoGrowWindows) {
+        restoreManualWindowHeights();
+      }
+      applyOverlaySettings();
+    });
+  }
+
+  if (snapWindowsToggle) {
+    snapWindowsToggle.checked = settingsState.snapWindows;
+
+    snapWindowsToggle.addEventListener("change", () => {
+      settingsState.snapWindows = snapWindowsToggle.checked;
+      localStorage.setItem("snapWindows", String(settingsState.snapWindows));
+    });
+  }
+
   /* Meter background settings */
   const showMeterBgToggle = document.getElementById("show-meter-bg-toggle");
   const barColorModeControl = document.getElementById("bar-color-mode");
@@ -1723,6 +2032,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const barColorHexInput = document.getElementById("bar-color-hex");
   const barColorApplyButton = document.getElementById("bar-color-apply");
   const barColorCancelButton = document.getElementById("bar-color-cancel");
+  const textColorPreview = document.getElementById("text-color-preview");
+  const textColorPickerPanel = document.getElementById("text-color-picker-panel");
+  const textColorMap = document.getElementById("text-color-map");
+  const textColorHandle = document.getElementById("text-color-handle");
+  const textColorHueInput = document.getElementById("text-color-hue");
+  const textColorHexInput = document.getElementById("text-color-hex");
+  const textColorApplyButton = document.getElementById("text-color-apply");
+  const textColorCancelButton = document.getElementById("text-color-cancel");
+  const textStrokeWidthInput = document.getElementById("text-stroke-width");
   const meterBgColorPreview = document.getElementById("meter-bg-color-preview");
   const colorPickerPanel = document.getElementById("color-picker-panel");
   const meterBgColorMap = document.getElementById("meter-bg-color-map");
@@ -1735,6 +2053,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let pickerHsv = { h: 0, s: 0, v: 0 };
   let barPickerHsv = { h: 0, s: 0, v: 0 };
+  let textPickerHsv = { h: 0, s: 0, v: 1 };
 
   const sanitizeHex = (value) => {
     const raw = String(value || "").trim();
@@ -1818,10 +2137,51 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
+  const setTextColorControls = (color, updatePicker = true) => {
+    const clean = String(color).replace("#", "");
+    const rgb = [
+      Number(`0x${clean.substring(0, 2)}`) || 0,
+      Number(`0x${clean.substring(2, 4)}`) || 0,
+      Number(`0x${clean.substring(4, 6)}`) || 0,
+    ];
+
+    if (updatePicker) {
+      textPickerHsv = rgbToHsv(rgb[0] ?? 0, rgb[1] ?? 0, rgb[2] ?? 0);
+    }
+
+    if (textColorHexInput) {
+      textColorHexInput.value = color.toUpperCase();
+    }
+
+    if (textColorHueInput) {
+      textColorHueInput.value = String(Math.round(textPickerHsv.h));
+    }
+
+    if (textColorPreview) {
+      textColorPreview.style.backgroundColor = color;
+    }
+
+    if (textColorMap) {
+      textColorMap.style.setProperty("--picker-hue", String(Math.round(textPickerHsv.h)));
+    }
+
+    if (textColorHandle) {
+      textColorHandle.style.left = `${textPickerHsv.s * 100}%`;
+      textColorHandle.style.top = `${(1 - textPickerHsv.v) * 100}%`;
+    }
+  };
+
   const setBarColorFromPicker = () => {
     const rgb = hsvToRgb(barPickerHsv.h, barPickerHsv.s, barPickerHsv.v);
     const color = rgbToHex(rgb.r, rgb.g, rgb.b);
     setBarColorControls(color, false);
+    return color;
+  };
+
+  const setTextColorFromPicker = () => {
+    const rgb = hsvToRgb(textPickerHsv.h, textPickerHsv.s, textPickerHsv.v);
+    const color = rgbToHex(rgb.r, rgb.g, rgb.b);
+    setTextColorControls(color, false);
     return color;
   };
 
@@ -1836,6 +2196,19 @@ document.addEventListener("DOMContentLoaded", () => {
     barPickerHsv.v = rect.height === 0 ? 0 : 1 - y / rect.height;
 
     setBarColorFromPicker();
+  };
+
+  const updateTextPickerFromEvent = (event) => {
+    if (!textColorMap) return;
+
+    const rect = textColorMap.getBoundingClientRect();
+    const x = Math.max(0, Math.min(rect.width, event.clientX - rect.left));
+    const y = Math.max(0, Math.min(rect.height, event.clientY - rect.top));
+
+    textPickerHsv.s = rect.width === 0 ? 0 : x / rect.width;
+    textPickerHsv.v = rect.height === 0 ? 0 : 1 - y / rect.height;
+
+    setTextColorFromPicker();
   };
 
   const setColorFromPicker = () => {
@@ -1959,6 +2332,91 @@ document.addEventListener("DOMContentLoaded", () => {
 
   setBarColorControls(settingsState.barCustomColor);
   updateBarCustomVisibility();
+
+  if (textColorPreview) {
+    textColorPreview.style.backgroundColor = settingsState.textColor;
+    textColorPreview.addEventListener("click", (event) => {
+      event.stopPropagation();
+      textColorPickerPanel?.classList.toggle("hidden");
+    });
+  }
+
+  if (textColorHexInput) {
+    textColorHexInput.value = settingsState.textColor;
+    textColorHexInput.addEventListener("input", () => {
+      const sanitized = sanitizeHex(textColorHexInput.value);
+      if (sanitized) {
+        setTextColorControls(sanitized);
+      }
+    });
+  }
+
+  if (textColorHueInput) {
+    textColorHueInput.addEventListener("input", () => {
+      textPickerHsv.h = Number(textColorHueInput.value);
+      setTextColorFromPicker();
+    });
+  }
+
+  if (textColorMap) {
+    let isPickingTextColor = false;
+
+    const stopPickingTextColor = () => {
+      isPickingTextColor = false;
+      document.removeEventListener("mousemove", movePickingTextColor);
+      document.removeEventListener("mouseup", stopPickingTextColor);
+    };
+
+    const movePickingTextColor = (event) => {
+      if (!isPickingTextColor) return;
+      event.preventDefault();
+      updateTextPickerFromEvent(event);
+    };
+
+    textColorMap.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      isPickingTextColor = true;
+      updateTextPickerFromEvent(event);
+      document.addEventListener("mousemove", movePickingTextColor);
+      document.addEventListener("mouseup", stopPickingTextColor);
+    });
+  }
+
+  textColorApplyButton?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const sanitized = sanitizeHex(textColorHexInput?.value);
+    if (sanitized) {
+      settingsState.textColor = sanitized;
+      localStorage.setItem("textColor", settingsState.textColor);
+      applyOverlaySettings();
+    }
+  });
+
+  textColorCancelButton?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setTextColorControls(settingsState.textColor);
+    textColorPickerPanel?.classList.add("hidden");
+  });
+
+  setTextColorControls(settingsState.textColor);
+
+  if (textStrokeWidthInput) {
+    textStrokeWidthInput.value = String(settingsState.textStrokeWidth);
+
+    const updateTextStrokeWidth = (commitValue = false) => {
+      const width = clampTextStrokeWidth(Number(textStrokeWidthInput.value));
+      settingsState.textStrokeWidth = width;
+      localStorage.setItem("textStrokeWidth", String(settingsState.textStrokeWidth));
+      if (commitValue) {
+        textStrokeWidthInput.value = String(width);
+      }
+      applyOverlaySettings();
+    };
+
+    textStrokeWidthInput.addEventListener("input", () => updateTextStrokeWidth());
+    textStrokeWidthInput.addEventListener("change", () => updateTextStrokeWidth(true));
+  }
 
   if (meterBgColorPreview) {
     meterBgColorPreview.style.backgroundColor = settingsState.meterBgColor;
@@ -2095,11 +2553,15 @@ document.addEventListener("DOMContentLoaded", () => {
     settingsState.showFooter = DEFAULT_SETTINGS.showFooter;
     settingsState.alwaysShowPlayer = DEFAULT_SETTINGS.alwaysShowPlayer;
     settingsState.showCornerAid = DEFAULT_SETTINGS.showCornerAid;
+    settingsState.autoGrowWindows = DEFAULT_SETTINGS.autoGrowWindows;
+    settingsState.snapWindows = DEFAULT_SETTINGS.snapWindows;
     settingsState.showMeterBg = DEFAULT_SETTINGS.showMeterBg;
     settingsState.meterBgColor = DEFAULT_SETTINGS.meterBgColor;
     settingsState.meterBgOpacity = DEFAULT_SETTINGS.meterBgOpacity;
     settingsState.barColorMode = DEFAULT_SETTINGS.barColorMode;
     settingsState.barCustomColor = DEFAULT_SETTINGS.barCustomColor;
+    settingsState.textColor = DEFAULT_SETTINGS.textColor;
+    settingsState.textStrokeWidth = DEFAULT_SETTINGS.textStrokeWidth;
     settingsState.barHeight = DEFAULT_SETTINGS.barHeight;
     settingsState.barMaximum = DEFAULT_SETTINGS.barMaximum;
 
@@ -2109,11 +2571,15 @@ document.addEventListener("DOMContentLoaded", () => {
     localStorage.setItem("showFooter", String(settingsState.showFooter));
     localStorage.setItem("alwaysShowPlayer", String(settingsState.alwaysShowPlayer));
     localStorage.setItem("showCornerAid", String(settingsState.showCornerAid));
+    localStorage.setItem("autoGrowWindows", String(settingsState.autoGrowWindows));
+    localStorage.setItem("snapWindows", String(settingsState.snapWindows));
     localStorage.setItem("showMeterBg", String(settingsState.showMeterBg));
     localStorage.setItem("meterBgColor", settingsState.meterBgColor);
     localStorage.setItem("meterBgOpacity", settingsState.meterBgOpacity);
     localStorage.setItem("barColorMode", settingsState.barColorMode);
     localStorage.setItem("barCustomColor", settingsState.barCustomColor);
+    localStorage.setItem("textColor", settingsState.textColor);
+    localStorage.setItem("textStrokeWidth", String(settingsState.textStrokeWidth));
     localStorage.setItem("barHeight", String(settingsState.barHeight));
     localStorage.setItem("barMaximum", String(settingsState.barMaximum));
 
@@ -2141,6 +2607,14 @@ document.addEventListener("DOMContentLoaded", () => {
       showCornerAidToggle.checked = settingsState.showCornerAid;
     }
 
+    if (autoGrowWindowsToggle) {
+      autoGrowWindowsToggle.checked = settingsState.autoGrowWindows;
+    }
+
+    if (snapWindowsToggle) {
+      snapWindowsToggle.checked = settingsState.snapWindows;
+    }
+
     if (showMeterBgToggle) {
       showMeterBgToggle.checked = settingsState.showMeterBg;
     }
@@ -2149,6 +2623,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     setBarColorControls(settingsState.barCustomColor);
     updateBarCustomVisibility();
+
+    setTextColorControls(settingsState.textColor);
+
+    if (textStrokeWidthInput) {
+      textStrokeWidthInput.value = String(settingsState.textStrokeWidth);
+    }
 
     setColorControls(settingsState.meterBgColor);
 
@@ -2172,6 +2652,10 @@ document.addEventListener("DOMContentLoaded", () => {
       meterBarMaximumValue.textContent = String(settingsState.barMaximum);
     }
 
+    if (!settingsState.autoGrowWindows) {
+      restoreManualWindowHeights();
+    }
+
     applyOverlaySettings();
     refreshRows();
     settingsMenu?.classList.add("hidden");
@@ -2189,6 +2673,12 @@ document.addEventListener("DOMContentLoaded", () => {
     barColorMap,
     barColorHueInput,
     barColorHexInput,
+    textColorPreview,
+    textColorPickerPanel,
+    textColorMap,
+    textColorHueInput,
+    textColorHexInput,
+    textStrokeWidthInput,
     colorPickerPanel,
     meterBgColorPreview,
     meterBgColorMap,
@@ -2210,7 +2700,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (
       event.target instanceof HTMLElement &&
       event.target.closest(
-        "#preferences-window, #settings-menu, #window-manager, #secondary-windows, #open-preferences, #create-secondary-window, #open-window-manager, #reset-defaults, #color-picker-panel, #meter-bg-color-preview, #meter-bg-color-map, #meter-bg-hue, #meter-bg-hex, #meter-bg-opacity, #meter-bar-height, #meter-bar-maximum, .settings-field, .settings-row, .settings-action, input, button"
+        "#preferences-window, #settings-menu, #window-manager, #secondary-windows, #open-preferences, #create-secondary-window, #open-window-manager, #reset-defaults, #color-picker-panel, #meter-bg-color-preview, #meter-bg-color-map, #meter-bg-hue, #meter-bg-hex, #meter-bg-opacity, #text-color-picker-panel, #text-color-preview, #text-color-map, #text-color-hue, #text-color-hex, #text-stroke-width, #meter-bar-height, #meter-bar-maximum, .settings-field, .settings-row, .settings-action, input, button"
       )
     ) {
       event.preventDefault();

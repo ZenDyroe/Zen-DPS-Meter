@@ -3,6 +3,8 @@
   --meter-bg-opacity: 0.88;
   --bg: rgba(var(--meter-bg-color), var(--meter-bg-opacity));
   --row-height: 24px;
+  --meter-text-color: #ffffff;
+  --meter-text-stroke-width: 0px;
   --panel: rgba(20, 22, 28, 0.95);
   --text: #f2f2f2;
   --muted: #b8b8b8;
@@ -72,6 +74,21 @@ body {
 .meter-window.no-meter-bg {
   background: transparent;
   border-color: transparent;
+}
+
+.meter-window .encounter-time,
+.meter-window .title,
+.meter-window .enc-dps span,
+.meter-window .rank,
+.meter-window .name,
+.meter-window .dps,
+.meter-window .percent,
+.meter-window .enc-dps small,
+.meter-window .encounter-location,
+.meter-window .status {
+  color: var(--meter-text-color);
+  -webkit-text-stroke: var(--meter-text-stroke-width) rgba(0, 0, 0, 0.86);
+  paint-order: stroke fill;
 }
 
 .meter-window.is-empty .row-header,
@@ -689,6 +706,16 @@ body {
 
 .settings-field input[type="range"] {
   width: 95px;
+}
+
+.settings-field input[type="number"].short-number-input {
+  width: 64px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  padding: 4px 6px;
+  background: rgba(255, 255, 255, 0.04);
+  color: white;
+  font-family: inherit;
 }
 
 .preferences-body input[type="range"] {
