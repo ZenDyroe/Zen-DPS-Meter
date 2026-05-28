@@ -800,6 +800,7 @@ function renderRows(rows, options = {}) {
   const overlay = document.getElementById("overlay");
   if (overlay) {
     renderRowsForMeter(overlay, rows, options);
+    moveWindowsAttachedToResize(overlay, getRectFromElement(overlay), getRectFromElement(overlay));
   }
 
   document.querySelectorAll(".secondary-window").forEach((meterRoot) => {
@@ -1287,16 +1288,20 @@ function moveSecondaryWindowBy(windowState, dx, dy) {
 
 function anchorWindowToMain(windowState, mainRect) {
   const element = getSecondaryWindowElement(windowState.id);
-  if (!element || !mainRect) return;
+  if (!element || !mainRect) return false;
 
   const offsetX = Number(windowState.attachedToMainOffsetX) || 0;
   const offsetY = Number(windowState.attachedToMainOffsetY) || 0;
   const maxX = Math.max(window.innerWidth - element.offsetWidth, 0);
+  const nextX = Math.round(Math.max(0, Math.min(mainRect.left + offsetX, maxX)));
+  const nextY = Math.round(Math.max(0, mainRect.bottom + offsetY));
+  const changed = windowState.x !== nextX || windowState.y !== nextY;
 
-  windowState.x = Math.round(Math.max(0, Math.min(mainRect.left + offsetX, maxX)));
-  windowState.y = Math.round(Math.max(0, mainRect.bottom + offsetY));
+  windowState.x = nextX;
+  windowState.y = nextY;
   element.style.left = `${windowState.x}px`;
   element.style.top = `${windowState.y}px`;
+  return changed;
 }
 
 function updateMainAttachmentOffsets(windowState) {
@@ -1324,12 +1329,13 @@ function moveWindowsAttachedToResize(meterRoot, beforeRect, afterRect) {
     ])
   );
 
-  if (meterRoot.id === "overlay" && dyBottom !== 0) {
+  if (meterRoot.id === "overlay") {
     currentSecondaryWindows.forEach((windowState) => {
       if (windowState.attachedToMain !== true) return;
 
-      anchorWindowToMain(windowState, afterRect);
-      movedWindowIds.add(windowState.id);
+      if (anchorWindowToMain(windowState, afterRect)) {
+        movedWindowIds.add(windowState.id);
+      }
     });
   }
 
