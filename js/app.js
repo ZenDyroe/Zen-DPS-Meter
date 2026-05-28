@@ -131,6 +131,7 @@ const DEFAULT_SETTINGS = {
   showCornerAid: true,
   autoGrowWindows: false,
   snapWindows: false,
+  attachNewWindowsToMain: false,
   showMeterBg: true,
   meterBgColor: "#050608",
   meterBgOpacity: "0.88",
@@ -166,6 +167,9 @@ const settingsState = {
 
   snapWindows:
     localStorage.getItem("snapWindows") === "true",
+
+  attachNewWindowsToMain:
+    localStorage.getItem("attachNewWindowsToMain") === "true",
 
   showMeterBg:
     localStorage.getItem("showMeterBg") !== "false",
@@ -1188,20 +1192,20 @@ function saveMainWindowSize(size) {
 function createSecondaryWindowState(existingWindows) {
   const nextNumber = existingWindows.length + 1;
   const offset = Math.min(existingWindows.length * 18, 90);
-  const mainWindowHeight = Math.max(
-    document.getElementById("overlay")?.getBoundingClientRect().height || DEFAULT_MAIN_WINDOW_SIZE.height,
-    120
-  );
+  const mainWindowRect = document.getElementById("overlay")?.getBoundingClientRect();
+  const mainWindowBottom = Math.max(mainWindowRect?.bottom || DEFAULT_MAIN_WINDOW_SIZE.height, 120);
+  const isAttachedToMain = settingsState.attachNewWindowsToMain === true;
 
   return {
     id: `window-${Date.now()}`,
     title: `Window ${nextNumber}`,
     x: 0 + offset,
-    y: Math.round(mainWindowHeight + 12 + offset),
+    y: Math.round(mainWindowBottom + (isAttachedToMain ? offset : 12 + offset)),
     width: 300,
     height: 220,
     mode: "dps",
     locked: false,
+    attachedToMain: isAttachedToMain,
   };
 }
 
@@ -1279,7 +1283,7 @@ function moveSecondaryWindowBy(windowState, dx, dy) {
 }
 
 function moveWindowsAttachedToResize(meterRoot, beforeRect, afterRect) {
-  if (!settingsState.snapWindows || !currentSecondaryWindows || !beforeRect || !afterRect) return;
+  if (!currentSecondaryWindows || !beforeRect || !afterRect) return;
 
   const resizedWindowState = getSecondaryWindowStateByElement(meterRoot);
   const resizedWindowId = resizedWindowState?.id || null;
@@ -1292,6 +1296,22 @@ function moveWindowsAttachedToResize(meterRoot, beforeRect, afterRect) {
       getWindowRectFromState(windowState),
     ])
   );
+
+  if (meterRoot.id === "overlay" && dyBottom !== 0) {
+    currentSecondaryWindows.forEach((windowState) => {
+      if (windowState.attachedToMain !== true) return;
+
+      moveSecondaryWindowBy(windowState, 0, dyBottom);
+      movedWindowIds.add(windowState.id);
+    });
+  }
+
+  if (!settingsState.snapWindows) {
+    if (movedWindowIds.size > 0) {
+      saveSecondaryWindows(currentSecondaryWindows);
+    }
+    return;
+  }
 
   const moveAttachedToRect = (targetRect, dx, dy) => {
     if (dx === 0 && dy === 0) return false;
@@ -1783,12 +1803,14 @@ document.addEventListener("DOMContentLoaded", () => {
         height: mainWindowSize.height || overlay.offsetHeight,
       }),
       (nextSize) => {
+        const beforeRect = getRectFromElement(overlay);
         mainWindowSize = {
           width: Math.max(220, nextSize.width),
           height: Math.max(80, nextSize.height),
         };
         overlay.style.width = `${mainWindowSize.width}px`;
         overlay.style.height = `${mainWindowSize.height}px`;
+        moveWindowsAttachedToResize(overlay, beforeRect, getRectFromElement(overlay));
       },
       () => {
         saveMainWindowSize(mainWindowSize);
@@ -2115,6 +2137,8 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("auto-grow-windows-toggle");
   const snapWindowsToggle =
     document.getElementById("snap-windows-toggle");
+  const attachNewWindowsToggle =
+    document.getElementById("attach-new-windows-toggle");
 
   if (showRankToggle) {
     showRankToggle.checked = settingsState.showRanks;
@@ -2191,6 +2215,15 @@ document.addEventListener("DOMContentLoaded", () => {
     snapWindowsToggle.addEventListener("change", () => {
       settingsState.snapWindows = snapWindowsToggle.checked;
       localStorage.setItem("snapWindows", String(settingsState.snapWindows));
+    });
+  }
+
+  if (attachNewWindowsToggle) {
+    attachNewWindowsToggle.checked = settingsState.attachNewWindowsToMain;
+
+    attachNewWindowsToggle.addEventListener("change", () => {
+      settingsState.attachNewWindowsToMain = attachNewWindowsToggle.checked;
+      localStorage.setItem("attachNewWindowsToMain", String(settingsState.attachNewWindowsToMain));
     });
   }
 
@@ -2732,6 +2765,7 @@ document.addEventListener("DOMContentLoaded", () => {
     settingsState.showCornerAid = DEFAULT_SETTINGS.showCornerAid;
     settingsState.autoGrowWindows = DEFAULT_SETTINGS.autoGrowWindows;
     settingsState.snapWindows = DEFAULT_SETTINGS.snapWindows;
+    settingsState.attachNewWindowsToMain = DEFAULT_SETTINGS.attachNewWindowsToMain;
     settingsState.showMeterBg = DEFAULT_SETTINGS.showMeterBg;
     settingsState.meterBgColor = DEFAULT_SETTINGS.meterBgColor;
     settingsState.meterBgOpacity = DEFAULT_SETTINGS.meterBgOpacity;
@@ -2750,6 +2784,7 @@ document.addEventListener("DOMContentLoaded", () => {
     localStorage.setItem("showCornerAid", String(settingsState.showCornerAid));
     localStorage.setItem("autoGrowWindows", String(settingsState.autoGrowWindows));
     localStorage.setItem("snapWindows", String(settingsState.snapWindows));
+    localStorage.setItem("attachNewWindowsToMain", String(settingsState.attachNewWindowsToMain));
     localStorage.setItem("showMeterBg", String(settingsState.showMeterBg));
     localStorage.setItem("meterBgColor", settingsState.meterBgColor);
     localStorage.setItem("meterBgOpacity", settingsState.meterBgOpacity);
@@ -2790,6 +2825,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (snapWindowsToggle) {
       snapWindowsToggle.checked = settingsState.snapWindows;
+    }
+
+    if (attachNewWindowsToggle) {
+      attachNewWindowsToggle.checked = settingsState.attachNewWindowsToMain;
     }
 
     if (showMeterBgToggle) {
