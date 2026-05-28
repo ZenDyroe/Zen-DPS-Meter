@@ -1193,19 +1193,22 @@ function createSecondaryWindowState(existingWindows) {
   const nextNumber = existingWindows.length + 1;
   const offset = Math.min(existingWindows.length * 18, 90);
   const mainWindowRect = document.getElementById("overlay")?.getBoundingClientRect();
+  const mainWindowLeft = mainWindowRect?.left || 0;
   const mainWindowBottom = Math.max(mainWindowRect?.bottom || DEFAULT_MAIN_WINDOW_SIZE.height, 120);
   const isAttachedToMain = settingsState.attachNewWindowsToMain === true;
 
   return {
     id: `window-${Date.now()}`,
     title: `Window ${nextNumber}`,
-    x: 0 + offset,
-    y: Math.round(mainWindowBottom + (isAttachedToMain ? offset : 12 + offset)),
+    x: Math.round((isAttachedToMain ? mainWindowLeft : 0) + offset),
+    y: Math.round(mainWindowBottom + (isAttachedToMain ? 0 : 12 + offset)),
     width: 300,
     height: 220,
     mode: "dps",
     locked: false,
     attachedToMain: isAttachedToMain,
+    attachedToMainOffsetX: offset,
+    attachedToMainOffsetY: 0,
   };
 }
 
@@ -1282,6 +1285,30 @@ function moveSecondaryWindowBy(windowState, dx, dy) {
   keepWindowInOverlayBounds(windowState, element);
 }
 
+function anchorWindowToMain(windowState, mainRect) {
+  const element = getSecondaryWindowElement(windowState.id);
+  if (!element || !mainRect) return;
+
+  const offsetX = Number(windowState.attachedToMainOffsetX) || 0;
+  const offsetY = Number(windowState.attachedToMainOffsetY) || 0;
+  const maxX = Math.max(window.innerWidth - element.offsetWidth, 0);
+
+  windowState.x = Math.round(Math.max(0, Math.min(mainRect.left + offsetX, maxX)));
+  windowState.y = Math.round(Math.max(0, mainRect.bottom + offsetY));
+  element.style.left = `${windowState.x}px`;
+  element.style.top = `${windowState.y}px`;
+}
+
+function updateMainAttachmentOffsets(windowState) {
+  if (windowState.attachedToMain !== true) return;
+
+  const mainRect = document.getElementById("overlay")?.getBoundingClientRect();
+  if (!mainRect) return;
+
+  windowState.attachedToMainOffsetX = Math.round((windowState.x || 0) - mainRect.left);
+  windowState.attachedToMainOffsetY = Math.round((windowState.y || 0) - mainRect.bottom);
+}
+
 function moveWindowsAttachedToResize(meterRoot, beforeRect, afterRect) {
   if (!currentSecondaryWindows || !beforeRect || !afterRect) return;
 
@@ -1301,7 +1328,7 @@ function moveWindowsAttachedToResize(meterRoot, beforeRect, afterRect) {
     currentSecondaryWindows.forEach((windowState) => {
       if (windowState.attachedToMain !== true) return;
 
-      moveSecondaryWindowBy(windowState, 0, dyBottom);
+      anchorWindowToMain(windowState, afterRect);
       movedWindowIds.add(windowState.id);
     });
   }
@@ -1737,6 +1764,7 @@ function makeSecondaryWindowDraggable(windowElement, header, windowState, saveWi
       stopEvent?.stopPropagation?.();
       activeGroup.forEach((groupWindow) => {
         getSecondaryWindowElement(groupWindow.id)?.classList.remove("is-dragging");
+        updateMainAttachmentOffsets(groupWindow);
       });
       document.removeEventListener("mousemove", moveWindow, true);
       document.removeEventListener("mouseup", stopDrag, true);
@@ -1964,6 +1992,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       windowElement.append(header, secondaryMenu, body);
       secondaryWindowsContainer.appendChild(windowElement);
+      if (windowState.attachedToMain === true) {
+        anchorWindowToMain(windowState, document.getElementById("overlay")?.getBoundingClientRect());
+      }
       updateMeterChrome(windowElement, state.lastEncounter || {}, state.lastRows || []);
       renderRowsForMeter(windowElement, state.lastRows || [], { snap: true });
     });
