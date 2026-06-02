@@ -117,6 +117,7 @@ const ROLE_COLORS = {
 
 const SECONDARY_WINDOWS_STORAGE_KEY = "secondaryWindows";
 const MAIN_WINDOW_SIZE_STORAGE_KEY = "mainWindowSize";
+const MAIN_WINDOW_MINIMIZED_STORAGE_KEY = "mainWindowMinimized";
 const DEFAULT_MAIN_WINDOW_SIZE = {
   width: 360,
   height: 180,
@@ -1190,6 +1191,14 @@ function saveMainWindowSize(size) {
   localStorage.setItem(MAIN_WINDOW_SIZE_STORAGE_KEY, JSON.stringify(size));
 }
 
+function loadMainWindowMinimized() {
+  return localStorage.getItem(MAIN_WINDOW_MINIMIZED_STORAGE_KEY) === "true";
+}
+
+function saveMainWindowMinimized(minimized) {
+  localStorage.setItem(MAIN_WINDOW_MINIMIZED_STORAGE_KEY, String(minimized));
+}
+
 function createSecondaryWindowState(existingWindows) {
   const nextNumber = existingWindows.length + 1;
   const offset = Math.min(existingWindows.length * 18, 90);
@@ -1207,6 +1216,7 @@ function createSecondaryWindowState(existingWindows) {
     height: 220,
     mode: "dps",
     locked: false,
+    minimized: false,
     attachedToMain: isAttachedToMain,
     attachedToMainOffsetX: offset,
     attachedToMainOffsetY: 0,
@@ -1406,7 +1416,7 @@ function moveWindowsAttachedToResize(meterRoot, beforeRect, afterRect) {
 }
 
 function applyAutoWindowHeight(meterRoot, rowCount) {
-  if (!settingsState.autoGrowWindows || !meterRoot) return;
+  if (!settingsState.autoGrowWindows || !meterRoot || meterRoot.classList.contains("is-minimized")) return;
 
   const container = meterRoot.querySelector(".combatants");
   if (!container) return;
@@ -1702,7 +1712,7 @@ function makeSecondaryWindowDraggable(windowElement, header, windowState, saveWi
   const startDrag = (event) => {
     event.stopPropagation();
 
-    if (windowState.locked) {
+    if (windowState.locked || windowState.minimized) {
       return;
     }
 
@@ -1809,6 +1819,7 @@ window.zenClosePreferences = (event) => {
 document.addEventListener("DOMContentLoaded", () => {
   const menuButton = document.getElementById("menu-button");
   const modeButton = document.getElementById("mode-button");
+  const minimizeButton = document.getElementById("minimize-button");
   const overlay = document.getElementById("overlay");
 
   const settingsMenu = document.getElementById("settings-menu");
@@ -1825,10 +1836,12 @@ document.addEventListener("DOMContentLoaded", () => {
   let secondaryWindows = loadSecondaryWindows();
   currentSecondaryWindows = secondaryWindows;
   let mainWindowSize = loadMainWindowSize() || { ...DEFAULT_MAIN_WINDOW_SIZE };
+  let mainWindowMinimized = loadMainWindowMinimized();
 
   if (overlay) {
     overlay.style.width = `${Math.max(mainWindowSize.width, 220)}px`;
     overlay.style.height = `${Math.max(mainWindowSize.height, 80)}px`;
+    overlay.classList.toggle("is-minimized", mainWindowMinimized);
 
     makeMeterResizable(
       overlay,
@@ -1852,8 +1865,35 @@ document.addEventListener("DOMContentLoaded", () => {
     );
   }
 
+  const setMainWindowMinimized = (minimized) => {
+    if (!overlay) return;
+
+    const beforeRect = getRectFromElement(overlay);
+    mainWindowMinimized = minimized;
+    overlay.classList.toggle("is-minimized", mainWindowMinimized);
+    saveMainWindowMinimized(mainWindowMinimized);
+    settingsMenu?.classList.add("hidden");
+    if (mainWindowMinimized) {
+      moveWindowsAttachedToResize(overlay, beforeRect, getRectFromElement(overlay));
+    } else {
+      applyOverlaySettings();
+    }
+  };
+
   modeButton?.addEventListener("click", () => {
     if (overlay) cycleMeterMode(overlay);
+  });
+
+  minimizeButton?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setMainWindowMinimized(true);
+  });
+
+  overlay?.querySelector(".topbar")?.addEventListener("click", (event) => {
+    if (!mainWindowMinimized) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setMainWindowMinimized(false);
   });
 
   menuButton?.addEventListener("click", (event) => {
@@ -1897,6 +1937,7 @@ document.addEventListener("DOMContentLoaded", () => {
       windowElement.dataset.windowId = windowState.id;
       windowElement.dataset.mode = windowState.mode || "dps";
       windowElement.classList.toggle("is-locked", windowState.locked === true);
+      windowElement.classList.toggle("is-minimized", windowState.minimized === true);
       windowElement.classList.toggle("is-empty", !state.lastRows || state.lastRows.length === 0);
       windowElement.style.left = `${windowState.x}px`;
       windowElement.style.top = `${windowState.y}px`;
@@ -1920,11 +1961,13 @@ document.addEventListener("DOMContentLoaded", () => {
             <small class="top-stat-label">Total DPS</small>
           </div>
           <button class="mode-button" type="button">${getModeLabel(windowElement.dataset.mode)}</button>
+          <button class="menu-button secondary-minimize-button" type="button" title="Minimize">&minus;</button>
           <button class="menu-button secondary-menu-button" type="button" title="Window menu">&#8942;</button>
         </div>
       `;
 
       const modeButton = header.querySelector(".mode-button");
+      const minimizeButton = header.querySelector(".secondary-minimize-button");
       const menuButton = header.querySelector(".secondary-menu-button");
 
       makeSecondaryWindowDraggable(windowElement, header, windowState, () => {
@@ -1956,6 +1999,23 @@ document.addEventListener("DOMContentLoaded", () => {
       modeButton?.addEventListener("click", (event) => {
         event.stopPropagation();
         cycleMeterMode(windowElement);
+      });
+
+      minimizeButton?.addEventListener("click", (event) => {
+        event.stopPropagation();
+        windowState.minimized = true;
+        saveSecondaryWindows(secondaryWindows);
+        windowElement.classList.add("is-minimized");
+      });
+
+      header.addEventListener("click", (event) => {
+        if (windowState.minimized !== true) return;
+        event.preventDefault();
+        event.stopPropagation();
+        windowState.minimized = false;
+        saveSecondaryWindows(secondaryWindows);
+        windowElement.classList.remove("is-minimized");
+        applyOverlaySettings();
       });
 
       menuButton?.addEventListener("click", (event) => {
